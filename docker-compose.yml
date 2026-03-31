@@ -1,0 +1,11 @@
+services:
+  accounting:
+    build: .
+    container_name: big-tech-accounting
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data

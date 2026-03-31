@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}Transactions — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2 style="margin: 0;">Transactions</h2>
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <span class="page-count" style="color: var(--text-muted);">{{ total }} transactions</span>
+        <a href="{{ url_for('import.index') }}" class="btn btn-primary">Import CSV</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<form method="GET" class="filters-bar">
+    <div class="filter-group">
+        <label for="account_id">Account</label>
+        <select name="account_id" id="account_id">
+            <option value="">All Accounts</option>
+            {% for acct in accounts %}
+            <option value="{{ acct.id }}" {% if request.args.get('account_id') == acct.id|string %}selected{% endif %}>{{ acct.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="category_id">Category</label>
+        <select name="category_id" id="category_id">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if request.args.get('category_id') == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="start_date">From</label>
+        <input type="date" name="start_date" id="start_date" value="{{ request.args.get('start_date', '') }}">
+    </div>
+    <div class="filter-group">
+        <label for="end_date">To</label>
+        <input type="date" name="end_date" id="end_date" value="{{ request.args.get('end_date', '') }}">
+    </div>
+    <div class="filter-group">
+        <label for="search">Search</label>
+        <input type="text" name="search" id="search" placeholder="Description or notes..." value="{{ request.args.get('search', '') }}">
+    </div>
+    <div class="filter-group filter-checkboxes">
+        <label>
+            <input type="checkbox" name="uncategorized" value="1" {% if request.args.get('uncategorized') %}checked{% endif %}>
+            Uncategorized only
+        </label>
+    </div>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    <a href="{{ url_for('transactions.index') }}" class="btn btn-ghost">Clear</a>
+</form>
+
+<!-- Bulk actions -->
+<form method="POST" action="{{ url_for('transactions.bulk_categorize') }}" id="bulk-form">
+    <div class="bulk-bar" id="bulk-bar" style="display:none;">
+        <span id="selected-count">0</span> selected
+        <select name="category_id" required>
+            <option value="">Assign category...</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="col-check"><input type="checkbox" id="select-all"></th>
+                <th class="col-date">Date</th>
+                <th class="col-desc">Description</th>
+                <th class="col-account">Account</th>
+                <th class="col-category">Category</th>
+                <th class="col-receipt" style="text-align: center;" title="Receipt Attachments">📎</th>
+                <th class="col-amount">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for txn in transactions %}
+            {% set is_locked = txn.date[:4]|int in locked_years %}
+            <tr id="txn-{{ txn.id }}" class="{% if not txn.category_id and not txn.is_transfer and not is_locked %}uncategorized{% endif %}{% if is_locked %} locked-row{% endif %}">
+                <td class="col-check">
+                    {% if is_locked %}
+                    <input type="checkbox" disabled style="opacity: 0.3;">
+                    {% else %}
+                    <input type="checkbox" name="transaction_ids" value="{{ txn.id }}" class="txn-checkbox">
+                    {% endif %}
+                </td>
+                <td class="col-date">
+                    {{ txn.date }}
+                    {% if is_locked %}
+                    <span title="Year {{ txn.date[:4] }} is locked" style="font-size: 0.75em; margin-left: 4px;">🔒</span>
+                    {% endif %}
+                </td>
+                <td class="col-desc" style="position: relative;" {% if not is_locked %}onmouseover="this.querySelector('.edit-btn').style.display='inline-block'" onmouseout="this.querySelector('.edit-btn').style.display='none'"{% endif %}>
+                    <div>
+                        <span class="txn-description">{{ txn.description }}</span>
+                        {% if txn.is_reconciled %}
+                        <span title="Reconciled to Bank Statement" style="color: var(--success); font-size: 0.8em; margin-left: 6px;">✔️</span>
+                        {% endif %}
+                        
+                        {% if txn.linked_invoice %}
+                        <a href="{{ url_for('invoices.view', id=txn.linked_invoice_id) }}" class="badge" style="background: #ecfeff; color: #0891b2; margin-left: 6px; padding: 2px 6px; text-decoration: none;" title="Go to Invoice">🔗 Inv #{{ txn.linked_invoice }}</a>
+                        {% endif %}
+
+                        {% if not is_locked and not txn.linked_invoice and txn.amount > 0 %}
+                            {% set match_found = namespace(found=false, inv_id=0, inv_num=0) %}
+                            {% for inv in open_invoices %}
+                                {% if (inv.total_amount|abs - txn.amount|abs)|abs < 0.01 %}
+                                    {% set match_found.found = true %}
+                                    {% set match_found.inv_id = inv.id %}
+                                    {% set match_found.inv_num = inv.invoice_number %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if match_found.found %}
+                                <button type="submit" formnovalidate name="invoice_id" value="{{ match_found.inv_id }}" formaction="{{ url_for('transactions.match_invoice', id=txn.id) }}" class="btn btn-sm" style="background:#fef08a; color:#854d0e; padding:2px 8px; font-weight:600; font-size:0.75rem; border:1px solid #eab308; border-radius:4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-left: 8px;" title="Auto-detect: Exact match for outstanding invoice">⚡ Match Inv #{{ match_found.inv_num }}</button>
+                            {% endif %}
+                        {% endif %}
+
+                        {% if not is_locked and not txn.linked_transfer_id and txn.id in transfer_matches %}
+                            {% set match = transfer_matches[txn.id] %}
+                            <button type="submit" formnovalidate name="linked_transfer_id" value="{{ match.id }}" formaction="{{ url_for('transactions.match_transfer', id=txn.id) }}" class="btn btn-sm" style="background:#fce7f3; color:#be185d; padding:2px 8px; font-weight:600; font-size:0.75rem; border:1px solid #f472b6; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); margin-left:8px;" title="Auto-detect: Matched internal transfer with {{ match.account }}">⚡ Match Transfer</button>
+                        {% endif %}
+                        
+                        {% if txn.linked_transfer_id %}
+                            <span class="badge" style="background:#faf5ff; color:#7e22ce; margin-left:6px; padding:2px 6px; border: 1px solid #d8b4fe;" title="Matched Internal Transfer">🔗 Transfer</span>
+                        {% endif %}
+
+                        {% if not is_locked %}
+                        <button type="button" class="btn btn-ghost btn-sm edit-btn" style="position: absolute; right: 8px; top: 8px; display: none; padding: 2px 6px;" 
+                            data-target-id="{{ txn.id }}" 
+                            data-notes="{{ txn.notes or '' }}" 
+                            data-contractor-id="{{ txn.contractor_id or '' }}" 
+                            onclick="openEditModal(this)">✏️</button>
+                        {% endif %}
+                    </div>
+                    {% if txn.notes or txn.contractor_id %}
+                    <div class="txn-meta" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        {% if txn.contractor_id %}
+                        <span class="badge" style="background: #e0e7ff; color: #3730a3; padding: 2px 6px;">
+                            👤 {% for c in contractors %}{% if c.id == txn.contractor_id %}{{ c.name }}{% endif %}{% endfor %}
+                        </span>
+                        {% endif %}
+                        {% if txn.notes %}
+                        <span class="txn-notes" style="display: inline;">📝 {{ txn.notes }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td class="col-account">{{ txn.account_name }}</td>
+                <td class="col-category">
+                    {% if is_locked %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">
+                        {% for cat in categories %}{% if txn.category_id == cat.id %}{{ cat.name }}{% endif %}{% endfor %}{% if not txn.category_id %}—{% endif %}
+                    </span>
+                    {% else %}
+                    <select
+                        data-update-url="{{ url_for('transactions.update_category', id=txn.id) }}"
+                        class="inline-select category-select {% if not txn.category_id and not txn.is_transfer %}needs-category{% endif %}"
+                    >
+                        <option value="">—</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if txn.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </td>
+                <td class="col-receipt" style="text-align: center;" onmouseover="let btn = this.querySelector('.del-receipt-btn'); if(btn) btn.style.opacity = '1';" onmouseout="let btn = this.querySelector('.del-receipt-btn'); if(btn) btn.style.opacity = '0';">
+                    {% if txn.receipt_file %}
+                    <div style="display: inline-flex; position: relative; align-items: center;">
+                        <a href="{{ url_for('transactions.view_receipt', filename=txn.receipt_file) }}" target="_blank" class="btn btn-ghost btn-sm" style="padding: 2px 6px; font-size: 1.1em;" title="View {{ txn.receipt_file }}">📄</a>
+                        {% if not is_locked %}
+                        <button type="button" class="del-receipt-btn" style="color: var(--danger); opacity: 0; transition: opacity 0.2s; position: absolute; left: 100%; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 0 4px; z-index: 10;" title="Remove Receipt" onclick="deleteReceipt({{ txn.id }})">×</button>
+                        {% endif %}
+                    </div>
+                    {% elif not is_locked %}
+                    <label class="btn btn-ghost btn-sm" style="cursor: pointer; margin: 0; padding: 2px 6px;" title="Upload Receipt">
+                        📎
+                        <input type="file" style="display: none;" class="receipt-upload" data-upload-url="{{ url_for('transactions.upload_receipt', id=txn.id) }}" accept="image/*,.pdf">
+                    </label>
+                    {% endif %}
+                </td>
+                <td class="col-amount {% if txn.amount >= 0 %}positive{% else %}negative{% endif %}">
+                    ${{ '{:,.2f}'.format(txn.amount|abs) }}
+                    {% if txn.amount < 0 %}
+                    <span class="amount-dir">out</span>
+                    {% else %}
+                    <span class="amount-dir">in</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not transactions %}
+            <tr>
+                <td colspan="6" class="empty-state">No transactions found.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</form>
+
+{% if total > transactions|length %}
+<div class="pagination">
+    {% set page = (request.args.get('page', '1')|int) %}
+    {% if page > 1 %}
+    <a href="?{{ request.query_string.decode().replace('page=' + page|string, 'page=' + (page-1)|string) }}" class="btn btn-ghost">← Previous</a>
+    {% endif %}
+    <span>Page {{ page }}</span>
+    {% if transactions|length == 100 %}
+    <a href="?{% if 'page=' in request.query_string.decode() %}{{ request.query_string.decode().replace('page=' + page|string, 'page=' + (page+1)|string) }}{% else %}{{ request.query_string.decode() }}&page={{ page + 1 }}{% endif %}" class="btn btn-ghost">Next →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+// Bulk select
+const selectAll = document.getElementById('select-all');
+const checkboxes = document.querySelectorAll('.txn-checkbox');
+const bulkBar = document.getElementById('bulk-bar');
+const selectedCount = document.getElementById('selected-count');
+
+function updateBulkBar() {
+    const checked = document.querySelectorAll('.txn-checkbox:checked').length;
+    selectedCount.textContent = checked;
+    bulkBar.style.display = checked > 0 ? 'flex' : 'none';
+}
+
+selectAll.addEventListener('change', () => {
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateBulkBar();
+});
+
+checkboxes.forEach(cb => cb.addEventListener('change', updateBulkBar));
+
+// Inline category save via plain fetch
+document.querySelectorAll('.category-select').forEach(select => {
+    select.addEventListener('change', function() {
+        const url = this.dataset.updateUrl;
+        const value = this.value;
+        const row = this.closest('tr');
+        const el = this;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'category_id=' + encodeURIComponent(value)
+        }).then(res => {
+            if (res.ok) {
+                row.style.transition = 'background 0.3s';
+                row.style.background = '#ecfdf5';
+                el.classList.remove('needs-category');
+                row.classList.remove('uncategorized');
+                setTimeout(() => { row.style.background = ''; }, 1200);
+            } else {
+                row.style.background = '#fef2f2';
+                setTimeout(() => { row.style.background = ''; }, 2000);
+            }
+        }).catch(() => {
+            row.style.background = '#fef2f2';
+            setTimeout(() => { row.style.background = ''; }, 2000);
+        });
+    });
+});
+
+// Edit Modal Functions
+function openEditModal(btn) {
+    document.getElementById('edit-txn-id').value = btn.dataset.targetId;
+    document.getElementById('edit-notes').value = btn.dataset.notes;
+    document.getElementById('edit-contractor').value = btn.dataset.contractorId;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+async function saveEditDetails() {
+    const id = document.getElementById('edit-txn-id').value;
+    const notes = document.getElementById('edit-notes').value;
+    const contractor = document.getElementById('edit-contractor').value;
+    
+    const saveBtn = document.querySelector('#editModal .btn-primary');
+    saveBtn.textContent = 'Saving...';
+    saveBtn.disabled = true;
+    
+    // Save Notes
+    const notesForm = new URLSearchParams();
+    notesForm.append('notes', notes);
+    await fetch(`/transactions/${id}/notes`, { method: 'POST', body: notesForm });
+    
+    // Save Contractor
+    const contractorForm = new URLSearchParams();
+    contractorForm.append('contractor_id', contractor);
+    await fetch(`/transactions/${id}/contractor`, { method: 'POST', body: contractorForm });
+    
+    location.reload(); // Refresh to update inline badges
+}
+
+// Inline Receipt Upload via AJAX
+document.querySelectorAll('.receipt-upload').forEach(input => {
+    input.addEventListener('change', async function() {
+        if (!this.files || !this.files[0]) return;
+        const formData = new FormData();
+        formData.append('receipt', this.files[0]);
+        const td = this.closest('.col-receipt');
+        const label = td.querySelector('label');
+        label.textContent = '⏳';
+        
+        try {
+            const res = await fetch(this.dataset.uploadUrl, { method: 'POST', body: formData });
+            if (res.ok) {
+                location.reload(); // Quick refresh to show the view + delete buttons
+            } else {
+                alert('Failed to upload receipt');
+                label.textContent = '📎';
+            }
+        } catch(err) {
+            alert('Upload error');
+            label.textContent = '📎';
+        }
+    });
+});
+
+async function deleteReceipt(id) {
+    if (!confirm('Remove this receipt? The physical file will be deleted.')) return;
+    try {
+        const res = await fetch(`/transactions/${id}/receipt`, { method: 'DELETE' });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert('Failed to delete receipt');
+        }
+    } catch(err) {
+        alert('Delete error');
+    }
+}
+</script>
+
+<!-- Edit Transaction Details Modal -->
+<div id="editModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 400px; max-width: 90%;">
+        <h3 style="margin-top: 0; margin-bottom: 20px;">Edit Transaction Details</h3>
+        <form id="editForm" method="POST">
+            <input type="hidden" id="edit-txn-id">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 500;">1099 Contractor</label>
+                <select id="edit-contractor" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <option value="">— None —</option>
+                    {% for c in contractors %}
+                    <option value="{{ c.id }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+                <small style="color: var(--text-muted);">Assign independent contractors for 1099 tracking.</small>
+            </div>
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 500;">Notes / Business Purpose</label>
+                <textarea id="edit-notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;" placeholder="Add specific details or attendees for audit..."></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('editModal').style.display='none'">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEditDetails()">Save Details</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

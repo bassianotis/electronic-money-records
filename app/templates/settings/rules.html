@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Rules — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Categorization Rules</h2>
+    <form method="POST" action="{{ url_for('settings.run_auto_categorize') }}" class="inline-form">
+        <button type="submit" class="btn btn-primary">Run Auto-Categorize</button>
+    </form>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Keyword</th>
+            <th>Category</th>
+            <th>Priority</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for rule in rules %}
+        <tr>
+            <td><code>{{ rule.keyword }}</code></td>
+            <td>{{ rule.category_name }}</td>
+            <td>{{ rule.priority }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('settings.delete_rule', id=rule.id) }}" class="inline-form">
+                    <button type="submit" class="btn btn-ghost btn-sm btn-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="card form-card">
+    <h3>Add Rule</h3>
+    <form method="POST" action="{{ url_for('settings.create_rule') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="keyword">Keyword</label>
+                <input type="text" id="keyword" name="keyword" required placeholder="e.g., DELTA">
+            </div>
+            <div class="form-group">
+                <label for="category_id">Category</label>
+                <select id="category_id" name="category_id" required>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="priority">Priority</label>
+                <input type="number" id="priority" name="priority" value="10" min="1" max="100">
+            </div>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

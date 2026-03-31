@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.category.name }} Detail — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{{ detail.category.name }}</h2>
+    <span class="page-count">{{ detail.count }} transactions · ${{ '{:,.2f}'.format(detail.total) }}</span>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th class="col-date">Date</th>
+            <th class="col-desc">Description</th>
+            <th class="col-account">Account</th>
+            <th class="col-amount">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for txn in detail.transactions %}
+        <tr>
+            <td class="col-date">{{ txn.date }}</td>
+            <td class="col-desc">{{ txn.description }}</td>
+            <td class="col-account">{{ txn.account_name }}</td>
+            <td class="col-amount {% if txn.amount >= 0 %}positive{% else %}negative{% endif %}">
+                ${{ '{:,.2f}'.format(txn.amount|abs) }}
+            </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+            <td colspan="3"><strong>Total</strong></td>
+            <td class="col-amount"><strong>${{ '{:,.2f}'.format(detail.total) }}</strong></td>
+        </tr>
+    </tbody>
+</table>
+{% endblock %}

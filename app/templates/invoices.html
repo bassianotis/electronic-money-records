@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Invoices — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Invoices</h2>
+    <a href="{{ url_for('invoices.create') }}" class="btn btn-primary">New Invoice</a>
+</div>
+
+<div class="filters-bar">
+    <a href="{{ url_for('invoices.index') }}" class="btn btn-ghost {% if not request.args.get('status') %}active{% endif %}">All</a>
+    <a href="{{ url_for('invoices.index', status='draft') }}" class="btn btn-ghost {% if request.args.get('status') == 'draft' %}active{% endif %}">Draft</a>
+    <a href="{{ url_for('invoices.index', status='sent') }}" class="btn btn-ghost {% if request.args.get('status') == 'sent' %}active{% endif %}">Sent</a>
+    <a href="{{ url_for('invoices.index', status='paid') }}" class="btn btn-ghost {% if request.args.get('status') == 'paid' %}active{% endif %}">Paid</a>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Invoice #</th>
+            <th>Client</th>
+            <th>Date</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th class="col-amount">Total</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inv in invoices %}
+        <tr>
+            <td><a href="{{ url_for('invoices.view', id=inv.id) }}">#{{ inv.invoice_number }}</a></td>
+            <td>{{ inv.client_name }}</td>
+            <td>{{ inv.date }}</td>
+            <td>{{ inv.due_date }}</td>
+            <td><span class="badge badge-{{ inv.status }}">{{ inv.status }}</span></td>
+            <td class="col-amount">${{ '{:,.2f}'.format(inv.total) }}</td>
+            <td>
+                <a href="{{ url_for('invoices.pdf', id=inv.id) }}" class="btn btn-ghost btn-sm">PDF</a>
+            </td>
+        </tr>
+        {% endfor %}
+        {% if not invoices %}
+        <tr><td colspan="7" class="empty-state">No invoices yet.</td></tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock %}

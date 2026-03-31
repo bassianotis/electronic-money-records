@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Reports — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Reports</h2>
+</div>
+
+<div class="report-links">
+    <div class="card">
+        <h3>Profit & Loss</h3>
+        <p>Income vs. expenses by category for a period.</p>
+        <div class="report-options">
+            <a href="{{ url_for('reports.pl', year=2025) }}" class="btn btn-secondary">2025 Annual</a>
+            <a href="{{ url_for('reports.pl', year=2026) }}" class="btn btn-secondary">2026 Annual</a>
+            <a href="{{ url_for('reports.pl', year=2026, quarter=1) }}" class="btn btn-ghost">Q1 2026</a>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Multi-Year Comparison</h3>
+        <p>Analyze revenue and expenses side-by-side across two distinct years.</p>
+        <div class="report-options">
+            <a href="{{ url_for('reports.multi_year', year_current=2026, year_prior=2025) }}" class="btn btn-secondary">2026 vs '25</a>
+            <a href="{{ url_for('reports.multi_year', year_current=2025, year_prior=2024) }}" class="btn btn-secondary">2025 vs '24</a>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Schedule C Output</h3>
+        <p>Tax-ready, per-owner summary mapped directly to IRS Schedule C lines.</p>
+        <div class="report-options">
+            <a href="{{ url_for('reports.schedule_c', year=2025) }}" class="btn btn-secondary">2025</a>
+            <a href="{{ url_for('reports.schedule_c', year=2026) }}" class="btn btn-secondary">2026</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

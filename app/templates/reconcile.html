@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Bank Reconciliation — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Bank Reconciliation</h2>
+    <div class="header-actions">
+        <!-- Optional Actions later -->
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <form action="{{ url_for('transactions.reconcile') }}" method="GET" style="display: flex; gap: 16px; align-items: flex-end;">
+        <div style="flex: 1;">
+            <label class="form-label">Bank Account</label>
+            <select name="account_id" class="form-control" required {% if unreconciled_txns %}readonly{% endif %}>
+                <option value="">Select Account...</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}" {% if account_id == acc.id %}selected{% endif %}>{{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Statement Ending Date</label>
+            <input type="date" name="statement_date" class="form-control" value="{{ statement_date }}" required {% if unreconciled_txns %}readonly{% endif %}>
+        </div>
+        <div style="flex: 1;">
+            <label class="form-label">Statement Ending Balance ($)</label>
+            <input type="number" step="0.01" name="statement_balance" class="form-control" value="{{ statement_balance }}" required {% if unreconciled_txns %}readonly{% endif %}>
+        </div>
+        <div>
+            {% if unreconciled_txns %}
+            <a href="{{ url_for('transactions.reconcile') }}" class="btn btn-secondary">Reset Setup</a>
+            {% else %}
+            <button type="submit" class="btn btn-primary">Start Matching</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+{% if account_id and statement_date and statement_balance is not none %}
+<div style="display: flex; gap: 24px;">
+    
+    <!-- Left Side: Interactive Math Dashboard -->
+    <div style="width: 340px; flex-shrink: 0;">
+        <div class="card" style="position: sticky; top: 24px; text-align: right;">
+            <h3 style="margin-top: 0; text-align: left; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">Reconciliation Metrics</h3>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--text-muted);">Target Statement Balance:</span>
+                <span style="font-weight: 500;">${{ '{:,.2f}'.format(statement_balance) }}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--text-muted);">Starting Cleared Balance:</span>
+                <span style="font-weight: 500;">${{ '{:,.2f}'.format(cleared_balance) }}</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+                <span style="color: var(--text-muted);">Selected Total:</span>
+                <span style="font-weight: 500;" id="st_selected_total">$0.00</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
+                <span style="color: var(--text-muted); font-size: 1.1em;">Difference:</span>
+                <span id="st_difference" style="font-weight: 700; font-size: 1.5em; color: var(--danger); font-family: var(--font-mono);">${{ '{:,.2f}'.format(statement_balance - cleared_balance) }}</span>
+            </div>
+
+            <form action="{{ url_for('transactions.reconcile') }}" method="POST" id="reconcileForm">
+                <input type="hidden" name="account_id" value="{{ account_id }}">
+                <input type="hidden" name="statement_date" value="{{ statement_date }}">
+                <button type="submit" class="btn btn-primary" id="btn_submit_reconcile" style="width: 100%; justify-content: center; padding: 12px;" disabled>
+                    Finish Reconciling
+                </button>
+                <div id="reconcile_warning" style="color: var(--danger); font-size: 0.85em; margin-top: 8px; text-align: center;">
+                    Difference must securely reach exactly $0.00 to lock.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Side: Action Grid -->
+    <div style="flex: 1;">
+        {% if unreconciled_txns %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">✓</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th class="col-amount">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in unreconciled_txns %}
+                    <tr class="reconcile-row" onclick="toggleCheckbox(this)" style="cursor: pointer; transition: background 0.15s ease;">
+                        <td style="text-align: center;" onclick="event.stopPropagation(); recalculateMath();">
+                            <input type="checkbox" name="transaction_ids[]" value="{{ txn.id }}" data-amount="{{ txn.amount }}" form="reconcileForm" class="reconcile-checkbox" style="cursor: pointer; transform: scale(1.2);">
+                        </td>
+                        <td>{{ txn.date }}</td>
+                        <td style="font-weight: 500;">{{ txn.description }}</td>
+                        <td style="color: var(--text-muted);">{{ txn.category_name or 'Uncategorized' }}</td>
+                        <td class="col-amount {% if txn.amount > 0 %}positive{% else %}negative{% endif %}">${{ '{:,.2f}'.format(txn.amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state" style="margin-top: 0;">
+                <div class="empty-icon">🎉</div>
+                <h3>All Caught Up</h3>
+                <p>There are no mathematically pending unreconciled transactions for this account up to {{ statement_date }}.</p>
+                <a href="{{ url_for('transactions.index') }}" class="btn btn-primary">Return to Ledger</a>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    const targetBalance = parseFloat("{{ statement_balance }}");
+    const startingCleared = parseFloat("{{ cleared_balance }}");
+    
+    function toggleCheckbox(rowElement) {
+        const checkbox = rowElement.querySelector('.reconcile-checkbox');
+        checkbox.checked = !checkbox.checked;
+        recalculateMath();
+    }
+
+    function recalculateMath() {
+        const checkboxes = document.querySelectorAll('.reconcile-checkbox:checked');
+        let selectedTotal = 0.0;
+        
+        checkboxes.forEach(cb => {
+            selectedTotal += parseFloat(cb.getAttribute('data-amount'));
+            // Visual row highlight
+            cb.closest('tr').style.background = '#f0fdf4'; // Light green
+        });
+        
+        const unselectedRows = document.querySelectorAll('.reconcile-checkbox:not(:checked)');
+        unselectedRows.forEach(cb => {
+            cb.closest('tr').style.background = ''; // Reset
+        });
+
+        const calculatedBalance = startingCleared + selectedTotal;
+        const difference = targetBalance - calculatedBalance;
+
+        // UI Updates
+        document.getElementById('st_selected_total').innerText = '$' + selectedTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        
+        const diffEl = document.getElementById('st_difference');
+        diffEl.innerText = '$' + difference.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        const submitBtn = document.getElementById('btn_submit_reconcile');
+        const warning = document.getElementById('reconcile_warning');
+
+        if (Math.abs(difference) < 0.01) {
+            // Exactly $0.00 difference! Ready to lock.
+            diffEl.style.color = 'var(--success)';
+            submitBtn.disabled = false;
+            submitBtn.style.backgroundColor = 'var(--success)';
+            submitBtn.style.borderColor = 'var(--success)';
+            submitBtn.style.color = '#ffffff';
+            warning.style.display = 'none';
+        } else {
+            diffEl.style.color = 'var(--danger)';
+            submitBtn.disabled = true;
+            submitBtn.style.backgroundColor = '#e2e8f0';
+            submitBtn.style.borderColor = '#cbd5e1';
+            submitBtn.style.color = '#64748b';
+            submitBtn.style.cursor = '';
+            warning.style.display = 'block';
+        }
+    }
+    
+    // Initialize
+    recalculateMath();
+</script>
+{% endif %}
+{% endblock %}

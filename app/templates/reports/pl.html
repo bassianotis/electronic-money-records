@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}P&L {{ report.period_label }} — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Profit & Loss — {{ report.period_label }}
+        {% if locked %}<span class="badge badge-locked">🔒 Locked</span>{% endif %}
+    </h2>
+</div>
+
+<div class="report-navigation">
+    <a href="{{ url_for('reports.pl', year=year-1) }}" class="btn btn-ghost">← {{ year - 1 }}</a>
+    <a href="{{ url_for('reports.pl', year=year, quarter=1) }}" class="btn btn-ghost {% if quarter == 1 %}active{% endif %}">Q1</a>
+    <a href="{{ url_for('reports.pl', year=year, quarter=2) }}" class="btn btn-ghost {% if quarter == 2 %}active{% endif %}">Q2</a>
+    <a href="{{ url_for('reports.pl', year=year, quarter=3) }}" class="btn btn-ghost {% if quarter == 3 %}active{% endif %}">Q3</a>
+    <a href="{{ url_for('reports.pl', year=year, quarter=4) }}" class="btn btn-ghost {% if quarter == 4 %}active{% endif %}">Q4</a>
+    <a href="{{ url_for('reports.pl', year=year) }}" class="btn btn-ghost {% if not quarter %}active{% endif %}">Full Year</a>
+    <a href="{{ url_for('reports.pl', year=year+1) }}" class="btn btn-ghost">{{ year + 1 }} →</a>
+</div>
+
+<table class="data-table report-table">
+    <thead>
+        <tr>
+            <th>Category</th>
+            <th>Schedule C Line</th>
+            <th class="col-amount">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="section-header">
+            <td colspan="3"><strong>Income</strong></td>
+        </tr>
+        {% for item in report.income_items %}
+        <tr>
+            <td>
+                <a href="{{ url_for('reports.category_detail', category_id=item.category_id, start_date=report.start_date, end_date=report.end_date) }}">
+                    {{ item.name }}
+                </a>
+            </td>
+            <td>{{ item.schedule_c_line or '' }}</td>
+            <td class="col-amount positive">${{ '{:,.2f}'.format(item.total) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="subtotal-row">
+            <td><strong>Total Income</strong></td>
+            <td></td>
+            <td class="col-amount positive"><strong>${{ '{:,.2f}'.format(report.total_income) }}</strong></td>
+        </tr>
+
+        <tr class="section-header">
+            <td colspan="3"><strong>Expenses</strong></td>
+        </tr>
+        {% for item in report.expense_items %}
+        <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.schedule_c_line or '' }}</td>
+            <td class="col-amount negative">${{ '{:,.2f}'.format(item.total) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="subtotal-row">
+            <td><strong>Total Expenses</strong></td>
+            <td></td>
+            <td class="col-amount negative"><strong>${{ '{:,.2f}'.format(report.total_expenses) }}</strong></td>
+        </tr>
+
+        <tr class="total-row">
+            <td><strong>Net Income</strong></td>
+            <td></td>
+            <td class="col-amount {% if report.net_income >= 0 %}positive{% else %}negative{% endif %}">
+                <strong>${{ '{:,.2f}'.format(report.net_income) }}</strong>
+            </td>
+        </tr>
+    </tbody>
+</table>
+{% endblock %}

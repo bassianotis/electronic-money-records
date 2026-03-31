@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Health Insurance Tracking - {{ year }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <h2 style="margin: 0;">Health Insurance</h2>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="{{ url_for('health.index', year=year-1) }}" class="btn btn-ghost btn-sm">←</a>
+            <span style="font-weight: 500;">{{ year }}</span>
+            <a href="{{ url_for('health.index', year=year+1) }}" class="btn btn-ghost btn-sm">→</a>
+        </div>
+    </div>
+    <div></div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <h3>Annual Summary</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 16px;">
+        Track your ACA premiums and Advance Premium Tax Credits (PTC) to calculate your self-employed health insurance deduction.
+    </p>
+    <div style="display: flex; gap: 24px;">
+        <div style="flex: 1; padding: 16px; background: #eef2ff; border-radius: 8px; border: 1px solid #c7d2fe;">
+            <div style="color: var(--primary); font-size: 0.9rem; font-weight: 500;">Total Annual Premiums (Self-Employed Deduction)</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">${{ '{:,.2f}'.format(totals.total_premium) }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Monthly Details</h3>
+    <table class="data-table" style="margin-top: 16px;">
+        <thead>
+            <tr>
+                <th>Month</th>
+                <th class="col-amount">Premium ($)</th>
+                <th>Notes</th>
+                <th style="width: 80px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in monthly_data %}
+            <tr>
+                <form method="POST" action="{{ url_for('health.save') }}">
+                    <input type="hidden" name="year" value="{{ year }}">
+                    <input type="hidden" name="month" value="{{ row.month }}">
+                    
+                    <td><strong>{{ months[row.month-1][:3] }}</strong></td>
+                    <td class="col-amount">
+                        <input type="number" name="premium" step="0.01" min="0" value="{{ row.premium or '' }}" placeholder="0.00" style="text-align: right; width: 150px;">
+                    </td>
+                    <td>
+                        <input type="text" name="notes" value="{{ row.notes or '' }}" placeholder="Optional notes" style="width: 100%;">
+                    </td>
+                    <td>
+                        <button type="submit" class="btn btn-sm btn-ghost">Save</button>
+                    </td>
+                </form>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

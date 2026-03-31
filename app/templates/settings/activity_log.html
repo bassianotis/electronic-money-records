@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Activity Log — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Activity Log</h2>
+    <span class="page-count">{{ total }} entries</span>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>Action</th>
+            <th>Transaction</th>
+            <th>Field</th>
+            <th>Old Value</th>
+            <th>New Value</th>
+            <th>Detail</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr>
+            <td class="col-date">{{ entry.timestamp }}</td>
+            <td><span class="badge badge-{{ entry.action }}">{{ entry.action | replace('_', ' ') }}</span></td>
+            <td>
+                {% if entry.txn_description %}
+                <span class="txn-description">{{ entry.txn_description[:40] }}{% if entry.txn_description|length > 40 %}…{% endif %}</span>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>{{ entry.field_name or '—' }}</td>
+            <td>
+                {% if entry.field_name == 'category_id' and entry.old_value %}
+                {{ category_map.get(entry.old_value|int, entry.old_value) }}
+                {% else %}
+                {{ entry.old_value or '—' }}
+                {% endif %}
+            </td>
+            <td>
+                {% if entry.field_name == 'category_id' and entry.new_value %}
+                {{ category_map.get(entry.new_value|int, entry.new_value) }}
+                {% else %}
+                {{ entry.new_value or '—' }}
+                {% endif %}
+            </td>
+            <td>{{ entry.detail or '' }}</td>
+        </tr>
+        {% endfor %}
+        {% if not entries %}
+        <tr>
+            <td colspan="7" class="empty-state">No activity recorded yet.</td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+{% if total > entries|length %}
+<div class="pagination">
+    {% set page = (request.args.get('page', '1')|int) %}
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="btn btn-ghost">← Previous</a>
+    {% endif %}
+    <span>Page {{ page }}</span>
+    {% if entries|length == 100 %}
+    <a href="?page={{ page + 1 }}" class="btn btn-ghost">Next →</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

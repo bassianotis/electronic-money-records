@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Invoice #{{ invoice.invoice_number }} — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Invoice #{{ invoice.invoice_number }}</h2>
+    <div class="header-actions">
+        <span class="badge badge-{{ invoice.status }}">{{ invoice.status }}</span>
+        <a href="{{ url_for('invoices.pdf', id=invoice.id) }}" class="btn btn-secondary">Download PDF</a>
+    </div>
+</div>
+
+<div class="card invoice-detail">
+    <div class="invoice-meta">
+        <div>
+            <strong>{{ business.name }}</strong><br>
+            {{ business.address_line1 }}<br>
+            {{ business.address_line2 }}<br>
+            {{ business.email }}<br>
+            {{ business.phone }}
+        </div>
+        <div>
+            <strong>Bill to:</strong> {{ invoice.client_name }}<br>
+            {% if invoice.client_address %}{{ invoice.client_address }}<br>{% endif %}
+            <strong>Date:</strong> {{ invoice.date }}<br>
+            <strong>Due:</strong> {{ invoice.due_date }}<br>
+            <strong>Terms:</strong> {{ invoice.terms }}
+        </div>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Description</th>
+                <th>Qty</th>
+                <th class="col-amount">Rate</th>
+                <th class="col-amount">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in line_items %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.quantity }}</td>
+                <td class="col-amount">${{ '{:,.2f}'.format(item.rate) }}</td>
+                <td class="col-amount">${{ '{:,.2f}'.format(item.amount) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="4"><strong>Total</strong></td>
+                <td class="col-amount"><strong>${{ '{:,.2f}'.format(total) }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if invoice.notes %}
+    <div class="invoice-notes">
+        <strong>Notes:</strong>
+        <p>{{ invoice.notes }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="invoice-actions">
+    {% if invoice.status == 'draft' %}
+    <a href="{{ url_for('invoices.edit', id=invoice.id) }}" class="btn btn-secondary">Edit</a>
+    <form method="POST" action="{{ url_for('invoices.update_status', id=invoice.id) }}" class="inline-form">
+        <input type="hidden" name="status" value="sent">
+        <button type="submit" class="btn btn-primary">Mark as Sent</button>
+    </form>
+    {% endif %}
+    {% if invoice.status == 'sent' %}
+    <form method="POST" action="{{ url_for('invoices.update_status', id=invoice.id) }}" class="inline-form">
+        <input type="hidden" name="status" value="paid">
+        <button type="submit" class="btn btn-primary">Mark as Paid</button>
+    </form>
+    {% endif %}
+    <form method="POST" action="{{ url_for('invoices.delete', id=invoice.id) }}" class="inline-form"
+          onsubmit="return confirm('Delete this invoice?')">
+        <button type="submit" class="btn btn-ghost btn-danger">Delete</button>
+    </form>
+</div>
+{% endblock %}

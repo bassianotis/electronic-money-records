@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Import — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Import Transactions</h2>
+</div>
+
+<div class="import-section">
+    <div class="card">
+        <h3>Import Consumers CU CSV</h3>
+        <p>Upload a CSV file exported from your Consumers Credit Union account.</p>
+        <form method="POST" action="{{ url_for('import.upload_ccu') }}" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="csv_file">CSV File</label>
+                <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Import</button>
+        </form>
+    </div>
+
+    {% if results %}
+    <div class="card import-results">
+        <h3>Import Results</h3>
+        <div class="results-summary">
+            <div class="result-item">
+                <span class="result-label">Account:</span>
+                <span class="result-value">{{ results.account_name }}</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Total rows:</span>
+                <span class="result-value">{{ results.total }}</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Imported:</span>
+                <span class="result-value positive">{{ results.imported }}</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Skipped (duplicates):</span>
+                <span class="result-value">{{ results.skipped }}</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Auto-categorized:</span>
+                <span class="result-value">{{ results.categorized }}</span>
+            </div>
+            {% if results.errors %}
+            <div class="result-item">
+                <span class="result-label">Errors:</span>
+                <span class="result-value negative">{{ results.errors|length }}</span>
+            </div>
+            <ul class="error-list">
+                {% for err in results.errors %}
+                <li>{{ err }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

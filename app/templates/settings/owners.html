@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Owners — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Owners (QJV)</h2>
+</div>
+
+<div class="card">
+    <p>Your LLC is a Qualified Joint Venture. Income and expenses are split between owners for separate Schedule C filing.</p>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>SSN (last 4)</th>
+                <th>Role</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for owner in owners %}
+            <tr>
+                <form method="POST" action="{{ url_for('settings.update_owner', id=owner.id) }}">
+                    <td><input type="text" name="name" value="{{ owner.name }}" required></td>
+                    <td><input type="text" name="ssn_last4" value="{{ owner.ssn_last4 or '' }}" maxlength="4" placeholder="XXXX"></td>
+                    <td>
+                        {% if owner.is_primary %}
+                        <span class="badge badge-paid">Primary</span>
+                        {% else %}
+                        <span class="badge badge-draft">Spouse</span>
+                        {% endif %}
+                    </td>
+                    <td><button type="submit" class="btn btn-ghost btn-sm">Save</button></td>
+                </form>
+            </tr>
+            {% endfor %}
+            {% if not owners %}
+            <tr>
+                <td colspan="4" class="empty-state">No owners configured.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if owners|length < 2 %}
+    <form method="POST" action="{{ url_for('settings.create_owner') }}" style="margin-top: 16px;">
+        <div class="form-row">
+            <div class="form-group">
+                <input type="text" name="name" placeholder="Owner name" required>
+            </div>
+            <div class="form-group">
+                <input type="text" name="ssn_last4" placeholder="SSN last 4" maxlength="4">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Owner</button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <h3>Default Split</h3>
+    <p>All transactions default to a <strong>50/50 split</strong> between owners. You can override the split on individual transactions when needed.</p>
+</div>
+{% endblock %}

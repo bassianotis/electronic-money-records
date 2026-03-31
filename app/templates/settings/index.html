@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Settings — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Settings</h2>
+</div>
+
+<div class="settings-links">
+    <a href="{{ url_for('settings.categories') }}" class="card settings-card">
+        <h3>Categories</h3>
+        <p>Manage expense and income categories.</p>
+    </a>
+    <a href="{{ url_for('contractors.index') }}" class="card settings-card">
+        <h3>1099 Contractors</h3>
+        <p>Manage freelancers and track penalty thresholds.</p>
+    </a>
+    <a href="{{ url_for('settings.rules') }}" class="card settings-card">
+        <h3>Categorization Rules</h3>
+        <p>Auto-categorize transactions by keyword.</p>
+    </a>
+    <a href="{{ url_for('settings.accounts') }}" class="card settings-card">
+        <h3>Bank Accounts</h3>
+        <p>Manage bank account connections.</p>
+    </a>
+    <a href="{{ url_for('settings.clients') }}" class="card settings-card">
+        <h3>Clients</h3>
+        <p>Manage client information for invoicing.</p>
+    </a>
+    <a href="{{ url_for('settings.owners') }}" class="card settings-card">
+        <h3>Owners (QJV)</h3>
+        <p>Configure joint venture owner split.</p>
+    </a>
+    <a href="{{ url_for('settings.year_lock') }}" class="card settings-card">
+        <h3>Year Lock</h3>
+        <p>Lock finalized tax years to prevent changes.</p>
+    </a>
+    <a href="{{ url_for('settings.activity_log') }}" class="card settings-card">
+        <h3>Activity Log</h3>
+        <p>View all changes made to transactions.</p>
+    </a>
+    <a href="{{ url_for('settings.backup') }}" class="card settings-card">
+        <h3>Backup & Restore</h3>
+        <p>Download, restore, or wipe database.</p>
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Dashboard</h2>
+</div>
+
+<div class="summary-cards">
+    <div class="card">
+        <div class="card-label">YTD Income ({{ year }})</div>
+        <div class="card-value positive">${{ '{:,.2f}'.format(ytd_income) }}</div>
+    </div>
+    <div class="card">
+        <div class="card-label">YTD Expenses ({{ year }})</div>
+        <div class="card-value negative">${{ '{:,.2f}'.format(ytd_expenses) }}</div>
+    </div>
+    <div class="card">
+        <div class="card-label">Net Income ({{ year }})</div>
+        <div class="card-value {% if ytd_income - ytd_expenses >= 0 %}positive{% else %}negative{% endif %}">
+            ${{ '{:,.2f}'.format(ytd_income - ytd_expenses) }}
+        </div>
+    </div>
+    <div class="card {% if uncategorized > 0 %}card-attention{% endif %}">
+        <div class="card-label">Uncategorized</div>
+        <div class="card-value">{{ uncategorized }}</div>
+        {% if uncategorized > 0 %}
+        <a href="{{ url_for('transactions.index', uncategorized='1') }}" class="card-link">Review →</a>
+        {% endif %}
+    </div>
+    <div class="card">
+        <div class="card-label">Outstanding Invoices</div>
+        <div class="card-value">{{ outstanding_invoices }}</div>
+        {% if outstanding_invoices > 0 %}
+        <a href="{{ url_for('invoices.index') }}" class="card-link">View →</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

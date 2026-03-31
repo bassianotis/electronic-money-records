@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Accounts — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Bank Accounts</h2>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Account ID</th>
+            <th>Description</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for acct in accounts %}
+        <tr class="{% if not acct.is_active %}inactive-row{% endif %}">
+            <td>{{ acct.name }}</td>
+            <td><code>{{ acct.account_id }}</code></td>
+            <td>{{ acct.description or '—' }}</td>
+            <td><span class="badge {% if acct.is_active %}badge-income{% else %}badge-transfer{% endif %}">{{ 'Active' if acct.is_active else 'Inactive' }}</span></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="card form-card">
+    <h3>Add Account</h3>
+    <form method="POST" action="{{ url_for('settings.create_account') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="account_id">CCU Account ID</label>
+                <input type="text" id="account_id" name="account_id" placeholder="e.g., CKG|9201862423">
+            </div>
+            <div class="form-group">
+                <label for="description">Description</label>
+                <input type="text" id="description" name="description">
+            </div>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

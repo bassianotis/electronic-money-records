@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% block title %}Taxes {{ year }} — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <h2 style="margin: 0;">Estimated Taxes</h2>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="{{ url_for('taxes.dashboard', year=year-1) }}" class="btn btn-ghost btn-sm">←</a>
+            <span style="font-weight: 500;">{{ year }}</span>
+            <a href="{{ url_for('taxes.dashboard', year=year+1) }}" class="btn btn-ghost btn-sm">→</a>
+        </div>
+    </div>
+    <div></div>
+</div>
+
+<!-- Tax Deficit Hero -->
+<div class="card" style="margin-bottom: 24px; padding: 32px 16px; text-align: center; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0;">
+    <h2 style="color: #166534; margin-top: 0; font-size: 1.2rem; font-weight: 500;">Estimated April {{ year + 1 }} Tax Deficit</h2>
+    <div style="font-size: 4rem; font-weight: 800; color: #15803d; margin: 12px 0;">
+        ${{ '{:,.2f}'.format(april_deficit.total) }}
+    </div>
+    <p style="margin-bottom: 0; color: #166534; font-size: 1rem; max-width: 600px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+        This is the estimated remaining balance you will owe at tax time. Keep this amount stored safely in a High-Yield Savings Account.
+    </p>
+</div>
+
+<!-- Income Projection -->
+<div class="card" style="margin-bottom: 24px;">
+    <h3>📊 Current Year Projection (Estimate)
+        {% if projection.on_track_150k %}
+        <span class="badge badge-draft" style="margin-left: 8px;">📈 On track for $150k+ AGI</span>
+        {% endif %}
+    </h3>
+    <p style="margin-bottom: 16px; color: var(--text-secondary);">
+        Based on your actual income through today, annualized to estimate full-year liability. <br>
+        <em>Note: This accounts for business deductions, the Standard Deduction, and QBI, but does not include personal deductions like retirement contributions or health insurance.</em>
+    </p>
+
+    <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+        <table class="data-table" style="flex: 1; min-width: 300px; margin-bottom: 0;">
+            <tbody>
+                <tr>
+                    <td>YTD Gross Income</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(projection.ytd_income) }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Projected Full-Year Income</strong></td>
+                    <td class="col-amount"><strong>${{ '{:,.2f}'.format(projection.projected_income) }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Projected Net (after expenses + home office)</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_net) }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table class="data-table" style="flex: 1; min-width: 300px; margin-bottom: 0;">
+            <thead>
+                <tr>
+                    <th>Jurisdiction</th>
+                    <th class="col-amount">Projected Liability</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Federal (Income + SE)</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_federal) }}</td>
+                </tr>
+                <tr>
+                    <td>Michigan (4.25%)</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_michigan) }}</td>
+                </tr>
+                <tr>
+                    <td>Grand Rapids (1.5%)</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_grand_rapids) }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Total Projected Tax</strong></td>
+                    <td class="col-amount"><strong>${{ '{:,.2f}'.format(projection.projected_federal + projection.projected_michigan + projection.projected_grand_rapids) }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Calculations Breakdown -->
+    <div style="margin-top: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.9rem;">
+        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary);">🧮 Calculations & Deductions Breakdown</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+            <div>
+                <strong>Federal Tax</strong>
+                <ul style="padding-left: 20px; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
+                    <li>+ Net Income (after ½ SE tax): ${{ '{:,.2f}'.format(projection.agi + projection.health_deduction) }}</li>
+                    <li>- Health Insurance : ${{ '{:,.2f}'.format(projection.health_deduction) }}</li>
+                    <li>- Standard Deduction: ${{ '{:,.2f}'.format(projection.standard_deduction) }}</li>
+                    <li>- QBI (20%): ${{ '{:,.2f}'.format(projection.qbi_deduction) }}</li>
+                    <li style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 4px; color: var(--text-primary);"><strong>Taxable Income: ${{ '{:,.2f}'.format(projection.federal_taxable) }}</strong></li>
+                    <li>- Child Tax Credit: ${{ '{:,.2f}'.format(projection.child_tax_credit) }}</li>
+                    <li>+ SE Tax: ${{ '{:,.2f}'.format(projection.projected_se_tax) }}</li>
+                </ul>
+            </div>
+            <div>
+                <strong>Michigan Tax</strong>
+                <ul style="padding-left: 20px; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
+                    <li>+ Adjusted Gross Income: ${{ '{:,.2f}'.format(projection.agi) }}</li>
+                    <li>- Exemptions (Dependents): ${{ '{:,.2f}'.format(projection.mi_exemptions) }}</li>
+                    <li style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 4px; color: var(--text-primary);"><strong>Taxable Income: ${{ '{:,.2f}'.format(projection.mi_taxable) }}</strong></li>
+                    <li>* Flat Rate: 4.25%</li>
+                </ul>
+            </div>
+            <div>
+                <strong>Grand Rapids Tax</strong>
+                <ul style="padding-left: 20px; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
+                    <li>+ Adjusted Gross Income: ${{ '{:,.2f}'.format(projection.agi) }}</li>
+                    <li>- Exemptions (Dependents): ${{ '{:,.2f}'.format(projection.gr_exemptions) }}</li>
+                    <li style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 4px; color: var(--text-primary);"><strong>Taxable Income: ${{ '{:,.2f}'.format(projection.gr_taxable) }}</strong></li>
+                    <li>* Flat Rate: 1.5%</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quarterly Breakdown -->
+<div class="tax-quarters">
+    {% for q in quarters %}
+    <div class="card {% if q.is_next %}card-highlight{% endif %}" style="margin-bottom: 16px;">
+        <h3>{{ q.label }}
+            <span style="font-weight: normal; font-size: 14px; color: var(--text-muted);">
+                Due {{ q.due_date.strftime('%b %d, %Y') }}
+            </span>
+            {% if q.is_next %}
+            <span class="badge badge-sent" style="margin-left: 8px;">⏰ Next Due</span>
+            {% elif q.is_past %}
+            <span class="badge badge-paid">✓ Past</span>
+            {% endif %}
+        </h3>
+        <table class="data-table" style="margin-bottom: 0;">
+            <thead>
+                <tr>
+                    <th>Jurisdiction</th>
+                    <th class="col-amount">Target</th>
+                    <th class="col-amount">Paid</th>
+                    <th class="col-amount">Remaining</th>
+                    <th>Pay</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for jkey, jinfo in jurisdictions.items() %}
+                {% set target = q[jkey].target %}
+                {% set paid_amt = q[jkey].paid %}
+                {% set remaining = target - paid_amt %}
+                <tr>
+                    <td>{{ jinfo.name }}</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(target) }}</td>
+                    <td class="col-amount {% if paid_amt > 0 %}positive{% endif %}">${{ '{:,.2f}'.format(paid_amt) }}</td>
+                    <td class="col-amount {% if remaining > 0 %}negative{% elif remaining <= 0 %}positive{% endif %}">
+                        {% if remaining <= 0 %}✓ Paid{% else %}${{ '{:,.2f}'.format(remaining) }}{% endif %}
+                    </td>
+                    <td><a href="{{ jinfo.pay_url }}" target="_blank" class="btn btn-ghost btn-sm">Pay →</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- YTD Summary -->
+<div class="card" style="margin-bottom: 24px;">
+    <h3>Year-to-Date Summary</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Jurisdiction</th>
+                <th class="col-amount">Annual Target</th>
+                <th class="col-amount">YTD Paid</th>
+                <th class="col-amount">Remaining</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for jkey, jinfo in jurisdictions.items() %}
+            {% set target = annual_targets[jkey] %}
+            {% set paid_amt = ytd[jkey] %}
+            <tr>
+                <td><strong>{{ jinfo.name }}</strong></td>
+                <td class="col-amount">${{ '{:,.2f}'.format(target) }}</td>
+                <td class="col-amount positive">${{ '{:,.2f}'.format(paid_amt) }}</td>
+                <td class="col-amount {% if target - paid_amt > 0 %}negative{% else %}positive{% endif %}">
+                    {% if target - paid_amt <= 0 %}✓ Paid in full{% else %}${{ '{:,.2f}'.format(target - paid_amt) }}{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td><strong>Total</strong></td>
+                <td class="col-amount"><strong>${{ '{:,.2f}'.format(annual_targets.values()|sum) }}</strong></td>
+                <td class="col-amount positive"><strong>${{ '{:,.2f}'.format(ytd.values()|sum) }}</strong></td>
+                <td class="col-amount">
+                    <strong>${{ '{:,.2f}'.format(annual_targets.values()|sum - ytd.values()|sum) }}</strong>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Record Payment -->
+<div class="card" style="margin-bottom: 24px;">
+    <h3>Record a Payment</h3>
+    <form method="POST" action="{{ url_for('taxes.add_payment') }}" enctype="multipart/form-data">
+        <input type="hidden" name="year" value="{{ year }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" name="date" required>
+            </div>
+            <div class="form-group">
+                <label>Amount</label>
+                <input type="number" name="amount" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Jurisdiction</label>
+                <select name="jurisdiction" required>
+                    <option value="federal">Federal</option>
+                    <option value="michigan">Michigan</option>
+                    <option value="grand_rapids">Grand Rapids</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Quarter</label>
+                <select name="quarter" required>
+                    <option value="Q1">Q1</option>
+                    <option value="Q2">Q2</option>
+                    <option value="Q3">Q3</option>
+                    <option value="Q4">Q4</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Confirmation #</label>
+                <input type="text" name="confirmation_number" placeholder="Optional">
+            </div>
+            <div class="form-group">
+                <label>Receipt (PDF/image)</label>
+                <input type="file" name="receipt" accept=".pdf,.png,.jpg,.jpeg,.webp">
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <input type="text" name="notes" placeholder="Optional">
+            </div>
+            <button type="submit" class="btn btn-primary">Record Payment</button>
+        </div>
+    </form>
+</div>
+
+<!-- Payment History -->
+{% if payments %}
+<div class="card" style="margin-bottom: 24px;">
+    <h3>Payment History</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Jurisdiction</th>
+                <th>Quarter</th>
+                <th class="col-amount">Amount</th>
+                <th>Confirmation</th>
+                <th>Receipt</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>{{ p.date }}</td>
+                <td>{{ jurisdictions[p.jurisdiction].name }}</td>
+                <td>{{ p.quarter }}</td>
+                <td class="col-amount">${{ '{:,.2f}'.format(p.amount) }}</td>
+                <td>{{ p.confirmation_number or '—' }}</td>
+                <td>
+                    {% if p.receipt_file %}
+                    <a href="{{ url_for('taxes.receipt', filename=p.receipt_file) }}" target="_blank" class="btn btn-ghost btn-sm">📄</a>
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('taxes.delete_payment', id=p.id, year=year) }}"
+                          onsubmit="return confirm('Delete this payment record?')">
+                        <button type="submit" class="btn btn-ghost btn-sm btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Safe Harbor & Minimums -->
+<div class="card" style="margin-bottom: 16px;">
+    <h3>🛡️ Safe Harbor Minimums</h3>
+    <p style="margin-bottom: 16px;">
+        To avoid underpayment penalties, you must pay at least <strong>{{ safe_harbor.pct_label }}</strong> of your prior year tax. 
+        {% if safe_harbor.prior_year_agi > 0 %}
+        <span style="color: var(--text-secondary);">(Based on {{ year-1 }} AGI of ${{ '{:,.0f}'.format(safe_harbor.prior_year_agi) }}).</span>
+        {% endif %}
+    </p>
+
+    <table class="data-table" style="font-size: 0.9rem; margin-bottom: 8px;">
+        <thead>
+            <tr>
+                <th>Jurisdiction</th>
+                <th class="col-amount">Safe Harbor (Annual)</th>
+                <th class="col-amount">Your Target / Q</th>
+                <th class="col-amount" style="background: #eef2ff;">Required Minimum / Q</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set sh_juris = [
+                ('Federal', safe_harbor.federal, annual_targets.federal, recommended.federal),
+                ('Michigan', safe_harbor.michigan, annual_targets.michigan, recommended.michigan),
+                ('Grand Rapids', safe_harbor.grand_rapids, annual_targets.grand_rapids, recommended.grand_rapids),
+            ] %}
+            {% for name, sh, annual, rec in sh_juris %}
+            <tr>
+                <td>{{ name }}</td>
+                <td class="col-amount">{% if sh > 0 %}${{ '{:,.2f}'.format(sh) }}{% else %}—{% endif %}</td>
+                <td class="col-amount">${{ '{:,.2f}'.format(annual / 4) }}</td>
+                <td class="col-amount" style="background: #f8faff; font-weight: 600;">
+                    ${{ '{:,.2f}'.format(rec) }}
+                </td>
+                <td>
+                    {% if (sh > 0 and annual >= sh) or annual >= rec * 4 %}
+                    <span class="badge badge-sent">✓ Safe Harbor Met</span>
+                    {% else %}
+                    <span class="badge" style="background: #fef2f2; color: #991b1b;">⚠ Underpaying</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td><strong>Total</strong></td>
+                <td></td>
+                <td class="col-amount"><strong>${{ '{:,.2f}'.format((annual_targets.federal + annual_targets.michigan + annual_targets.grand_rapids) / 4) }}</strong></td>
+                <td class="col-amount" style="background: #f8faff; font-weight: 600;">
+                    <strong>${{ '{:,.2f}'.format(recommended.federal + recommended.michigan + recommended.grand_rapids) }}</strong>
+                </td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    <p style="font-size: 0.8rem; color: var(--text-secondary);">
+        <strong>Required Minimum / Q</strong> is the lower of: (Safe Harbor ÷ 4) or (90% of Current Year Projected ÷ 4).
+    </p>
+</div>
+
+<!-- Configuration -->
+<div class="card">
+    <h3>{{ year }} Configuration</h3>
+    <form method="POST" action="{{ url_for('taxes.save_config') }}">
+        <input type="hidden" name="year" value="{{ year }}">
+        <p style="color: var(--text-muted); margin-bottom: 16px;">Set your quarterly payment targets and prior-year totals for safe harbor calculation.</p>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Quarterly Federal</label>
+                <input type="number" name="quarterly_federal" step="0.01" value="{{ config.quarterly_federal }}">
+            </div>
+            <div class="form-group">
+                <label>Quarterly Michigan</label>
+                <input type="number" name="quarterly_state" step="0.01" value="{{ config.quarterly_state }}">
+            </div>
+            <div class="form-group">
+                <label>Quarterly Grand Rapids</label>
+                <input type="number" name="quarterly_city" step="0.01" value="{{ config.quarterly_city }}">
+            </div>
+        </div>
+        <h4 style="margin-top: 16px;">Safe Harbor (Prior Year)</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Prior Year Federal Tax</label>
+                <input type="number" name="prior_year_federal" step="0.01" value="{{ config.prior_year_federal }}">
+            </div>
+            <div class="form-group">
+                <label>Prior Year State Tax</label>
+                <input type="number" name="prior_year_state" step="0.01" value="{{ config.prior_year_state }}">
+            </div>
+            <div class="form-group">
+                <label>Prior Year City Tax</label>
+                <input type="number" name="prior_year_city" step="0.01" value="{{ config.prior_year_city }}">
+            </div>
+        </div>
+        <h4 style="margin-top: 16px;">Lifestyle Exemptions</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label title="Used to calculate Child Tax Credit and State/City personal exemptions.">Number of Dependents</label>
+                <input type="number" name="dependents" min="0" step="1" value="{{ config.get('dependents', 0) }}">
+            </div>
+        </div>
+        <div class="form-row" style="margin-top: 12px;">
+            <button type="submit" class="btn btn-primary">Save Configuration</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

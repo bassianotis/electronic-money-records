@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Categories — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Categories</h2>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Schedule C Line</th>
+            <th>Deductible %</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cat in categories %}
+        <tr>
+            <form method="POST" action="{{ url_for('settings.update_category', id=cat.id) }}">
+                <td><input type="text" name="name" value="{{ cat.name }}" required style="width: 100%;"></td>
+                <td>
+                    <select name="type">
+                        <option value="expense" {% if cat.type == 'expense' %}selected{% endif %}>Expense</option>
+                        <option value="income" {% if cat.type == 'income' %}selected{% endif %}>Income</option>
+                        <option value="transfer" {% if cat.type == 'transfer' %}selected{% endif %}>Transfer</option>
+                    </select>
+                </td>
+                <td><input type="text" name="schedule_c_line" value="{{ cat.schedule_c_line or '' }}" placeholder="e.g., Line 18"></td>
+                <td><input type="number" name="deductible_pct" value="{{ (cat.deductible_pct or 1.0) * 100 }}" min="0" max="100" step="1" style="width: 70px;">%</td>
+                <td>
+                    <button type="submit" class="btn btn-ghost btn-sm">Save</button>
+                    <form method="POST" action="{{ url_for('settings.delete_category', id=cat.id) }}" class="inline-form"
+                          onsubmit="return confirm('Delete category &quot;{{ cat.name }}&quot;?')">
+                        <button type="submit" class="btn btn-ghost btn-sm btn-danger">Delete</button>
+                    </form>
+                </td>
+            </form>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="card form-card">
+    <h3>Add Category</h3>
+    <form method="POST" action="{{ url_for('settings.create_category') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="type">Type</label>
+                <select id="type" name="type">
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                    <option value="transfer">Transfer</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="schedule_c_line">Schedule C Line</label>
+                <input type="text" id="schedule_c_line" name="schedule_c_line" placeholder="e.g., Line 18">
+            </div>
+            <div class="form-group">
+                <label for="deductible_pct">Deductible %</label>
+                <input type="number" id="deductible_pct" name="deductible_pct" value="100" min="0" max="100" step="1" style="width: 80px;">
+            </div>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

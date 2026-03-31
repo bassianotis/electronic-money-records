@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Multi-Year Comparison — {{ year_current }} vs {{ year_prior }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <h2 style="margin: 0;">Multi-Year Comparison</h2>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="{{ url_for('reports.multi_year', year_current=year_current-1, year_prior=year_prior-1) }}" class="btn btn-ghost btn-sm">←</a>
+            <span style="font-weight: 500;">{{ year_current }} vs {{ year_prior }}</span>
+            <a href="{{ url_for('reports.multi_year', year_current=year_current+1, year_prior=year_prior+1) }}" class="btn btn-ghost btn-sm">→</a>
+        </div>
+    </div>
+</div>
+
+<table class="data-table report-table">
+    <thead>
+        <tr>
+            <th>Category</th>
+            <th class="col-amount" style="text-align: right;">{{ year_current }}</th>
+            <th class="col-amount" style="text-align: right;">{{ year_prior }}</th>
+            <th class="col-amount" style="text-align: right;">$ Change</th>
+            <th class="col-amount" style="text-align: right;">% Var</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="section-header">
+            <td colspan="5"><strong>Income</strong></td>
+        </tr>
+        {% for item in report.income_items %}
+        <tr>
+            <td>
+                <a href="{{ url_for('reports.category_detail', category_id=item.category_id, start_date=year_current ~ '-01-01', end_date=year_current ~ '-12-31') }}">
+                    {{ item.name }}
+                </a>
+            </td>
+            <td class="col-amount positive">${{ '{:,.2f}'.format(item.curr) }}</td>
+            <td class="col-amount positive">${{ '{:,.2f}'.format(item.prior) }}</td>
+            <td class="col-amount {% if item.diff > 0 %}positive{% elif item.diff < 0 %}negative{% endif %}" style="text-align: right; border-left: 1px solid var(--border);">
+                ${{ '{:,.2f}'.format(item.diff) }}
+            </td>
+            <td class="col-amount {% if item.diff > 0 %}positive{% elif item.diff < 0 %}negative{% endif %}" style="text-align: right;">
+                <span class="badge {% if item.pct > 20 %}badge-paid{% elif item.pct < -20 %}badge-draft{% else %}badge-default{% endif %}" style="font-weight: 500; font-family: var(--font-mono); width: 68px; display: inline-block; text-align: right;">
+                    {{ '{:+.1f}%'.format(item.pct) }}
+                </span>
+            </td>
+        </tr>
+        {% endfor %}
+        <tr class="summary-row">
+            <td><strong>Total Income</strong></td>
+            <td class="col-amount"><strong>${{ '{:,.2f}'.format(report.totals.income.curr) }}</strong></td>
+            <td class="col-amount"><strong>${{ '{:,.2f}'.format(report.totals.income.prior) }}</strong></td>
+            <td class="col-amount {% if report.totals.income.diff > 0 %}positive{% elif report.totals.income.diff < 0 %}negative{% endif %}" style="border-left: 1px solid var(--border); text-align: right;"><strong>${{ '{:,.2f}'.format(report.totals.income.diff) }}</strong></td>
+            <td class="col-amount {% if report.totals.income.diff > 0 %}positive{% elif report.totals.income.diff < 0 %}negative{% endif %}" style="text-align: right;"><strong>{{ '{:+.1f}%'.format(report.totals.income.pct) }}</strong></td>
+        </tr>
+        <tr class="spacer-row"><td colspan="5"></td></tr>
+
+        <tr class="section-header">
+            <td colspan="5"><strong>Expenses</strong></td>
+        </tr>
+        {% for item in report.expense_items %}
+        <tr>
+            <td>
+                <a href="{{ url_for('reports.category_detail', category_id=item.category_id, start_date=year_current ~ '-01-01', end_date=year_current ~ '-12-31') }}">
+                    {{ item.name }}
+                </a>
+            </td>
+            <td class="col-amount">${{ '{:,.2f}'.format(item.curr) }}</td>
+            <td class="col-amount">${{ '{:,.2f}'.format(item.prior) }}</td>
+            <td class="col-amount {% if item.diff > 0 %}negative{% elif item.diff < 0 %}positive{% endif %}" style="text-align: right; border-left: 1px solid var(--border);">
+                <!-- Note: Increasing expenses is technically a 'negative' variance to profit -->
+                ${{ '{:,.2f}'.format(item.diff) }}
+            </td>
+            <td class="col-amount {% if item.diff > 0 %}negative{% elif item.diff < 0 %}positive{% endif %}" style="text-align: right;">
+                <span class="badge {% if item.pct > 20 %}badge-draft{% elif item.pct < -20 %}badge-paid{% else %}badge-default{% endif %}" style="font-weight: 500; font-family: var(--font-mono); width: 68px; display: inline-block; text-align: right;">
+                    {{ '{:+.1f}%'.format(item.pct) }}
+                </span>
+            </td>
+        </tr>
+        {% endfor %}
+        <tr class="summary-row">
+            <td><strong>Total Expenses</strong></td>
+            <td class="col-amount"><strong>${{ '{:,.2f}'.format(report.totals.expense.curr) }}</strong></td>
+            <td class="col-amount"><strong>${{ '{:,.2f}'.format(report.totals.expense.prior) }}</strong></td>
+            <td class="col-amount {% if report.totals.expense.diff > 0 %}negative{% elif report.totals.expense.diff < 0 %}positive{% endif %}" style="border-left: 1px solid var(--border); text-align: right;"><strong>${{ '{:,.2f}'.format(report.totals.expense.diff) }}</strong></td>
+            <td class="col-amount {% if report.totals.expense.diff > 0 %}negative{% elif report.totals.expense.diff < 0 %}positive{% endif %}" style="text-align: right;"><strong>{{ '{:+.1f}%'.format(report.totals.expense.pct) }}</strong></td>
+        </tr>
+        <tr class="spacer-row"><td colspan="5"></td></tr>
+
+        <tr class="net-income-row">
+            <td><strong>Net Income</strong></td>
+            <td class="col-amount {% if report.totals.net.curr > 0 %}positive{% elif report.totals.net.curr < 0 %}negative{% endif %}">
+                <strong>${{ '{:,.2f}'.format(report.totals.net.curr) }}</strong>
+            </td>
+            <td class="col-amount {% if report.totals.net.prior > 0 %}positive{% elif report.totals.net.prior < 0 %}negative{% endif %}">
+                <strong>${{ '{:,.2f}'.format(report.totals.net.prior) }}</strong>
+            </td>
+            <td class="col-amount {% if report.totals.net.diff > 0 %}positive{% elif report.totals.net.diff < 0 %}negative{% endif %}" style="border-left: 1px solid var(--border); text-align: right;">
+                <strong>${{ '{:,.2f}'.format(report.totals.net.diff) }}</strong>
+            </td>
+            <td class="col-amount {% if report.totals.net.diff > 0 %}positive{% elif report.totals.net.diff < 0 %}negative{% endif %}" style="text-align: right;">
+                <strong>{{ '{:+.1f}%'.format(report.totals.net.pct) }}</strong>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<style>
+.spacer-row td {
+    height: 16px;
+    border: none;
+}
+.badge-default { background: #f3f4f6; color: #4b5563; }
+</style>
+{% endblock %}

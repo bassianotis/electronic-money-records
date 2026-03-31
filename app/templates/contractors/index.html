@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Contractors (1099) — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>1099 Contractors ({{ year }})</h2>
+    <div>
+        <a href="{{ url_for('contractors.index', year=year-1) }}" class="btn btn-ghost">← {{ year-1 }}</a>
+        <a href="{{ url_for('contractors.index', year=year+1) }}" class="btn btn-ghost">{{ year+1 }} →</a>
+        <button class="btn btn-primary" style="margin-left: 16px;" onclick="document.getElementById('new-contractor-row').style.display='table-row'">+ Add Contractor</button>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <p style="color: var(--text-secondary); margin-bottom: 16px;">
+        Track individual contractors and freelancers. If their total payments exceed <strong>$600</strong> in a calendar year, they will automatically be flagged for a 1099-NEC filing obligation.
+    </p>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>EIN / SSN (Last 4)</th>
+                    <th>W-9 Vault</th>
+                    <th class="col-amount">{{ year }} YTD Payments</th>
+                    <th>Notes</th>
+                    <th style="width: 60px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- New Contractor Form (Hidden by default) -->
+                <tr id="new-contractor-row" style="display: none; background: #f8fafc;">
+                    <td><input type="text" id="new-name" required placeholder="Legal Name" style="width: 100%;"></td>
+                    <td><input type="text" id="new-address" placeholder="Address" style="width: 100%;"></td>
+                    <td><input type="text" id="new-ein" placeholder="Last 4 (e.g. 1234)" style="width: 100%;"></td>
+                    <td style="text-align: center; color: var(--text-muted);">—</td>
+                    <td class="col-amount" style="color: var(--text-muted);">—</td>
+                    <td><input type="text" id="new-notes" placeholder="Notes" style="width: 100%;"></td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="saveNewContractor()">Save</button>
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="document.getElementById('new-contractor-row').style.display='none'">Cancel</button>
+                    </td>
+                </tr>
+
+                {% for c in contractors %}
+                <tr>
+                    <td>
+                        <input type="text" value="{{ c.name }}" data-field="name" data-id="{{ c.id }}" class="contractor-field" required style="width: 100%; border: none; background: transparent; font-weight: 500;" onblur="autoSave(this)">
+                    </td>
+                    <td>
+                        <input type="text" value="{{ c.address or '' }}" data-field="address" data-id="{{ c.id }}" class="contractor-field" style="width: 100%; border: none; background: transparent;" placeholder="Add address..." onblur="autoSave(this)">
+                    </td>
+                    <td>
+                        <input type="text" value="{{ c.ein_ssn_last4 or '' }}" data-field="ein_ssn_last4" data-id="{{ c.id }}" class="contractor-field" style="width: 100%; border: none; background: transparent;" placeholder="Last 4..." onblur="autoSave(this)">
+                    </td>
+                    <td style="text-align: center;" onmouseover="let b=this.querySelector('.del-w9-btn'); if(b) b.style.opacity='1';" onmouseout="let b=this.querySelector('.del-w9-btn'); if(b) b.style.opacity='0';">
+                        {% if c.w9_file %}
+                        <div style="display: inline-flex; align-items: center; gap: 6px; position: relative;">
+                            <a href="{{ url_for('contractors.view_w9', filename=c.w9_file) }}" target="_blank" class="badge" style="background: #ecfdf5; color: #065f46; padding: 2px 8px; text-decoration: none; font-size: 0.8rem;" title="View W-9">📄 View</a>
+                            <button type="button" class="del-w9-btn" style="color: var(--danger); opacity: 0; transition: opacity 0.2s; background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 0 4px;" title="Remove W-9" onclick="event.stopPropagation(); if(confirm('Delete this W-9?')) deleteW9({{ c.id }})">×</button>
+                        </div>
+                        {% else %}
+                        <label class="btn btn-ghost btn-sm" style="cursor: pointer; padding: 2px 8px; font-size: 0.8rem;" title="Upload W-9 PDF">
+                            📎 Upload
+                            <input type="file" style="display: none;" accept=".pdf,image/*" onchange="uploadW9({{ c.id }}, this)">
+                        </label>
+                        {% endif %}
+                    </td>
+                    <td class="col-amount">
+                        {% if c.needs_1099 %}
+                        <span class="badge" style="background: #fef2f2; color: #991b1b; margin-right: 8px;">1099 Required</span>
+                        <span style="font-weight: 700; color: #991b1b;">${{ '{:,.2f}'.format(c.ytd_payments) }}</span>
+                        {% else %}
+                        ${{ '{:,.2f}'.format(c.ytd_payments) }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <input type="text" value="{{ c.notes or '' }}" data-field="notes" data-id="{{ c.id }}" class="contractor-field" style="width: 100%; border: none; background: transparent;" placeholder="Add notes..." onblur="autoSave(this)">
+                    </td>
+                    <td style="text-align: center;">
+                        <button type="button" class="btn btn-sm btn-ghost btn-danger" style="padding: 2px 6px;" onclick="event.stopPropagation(); deleteContractor({{ c.id }}, '{{ c.name|e }}')">Del</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr id="empty-state-row">
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                        No contractors tracked yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Auto-save on blur — collects all fields for the contractor and POSTs
+function autoSave(el) {
+    const id = el.dataset.id;
+    const row = el.closest('tr');
+    const fields = row.querySelectorAll('.contractor-field');
+    const formData = new URLSearchParams();
+    formData.append('id', id);
+    fields.forEach(f => formData.append(f.dataset.field, f.value));
+    
+    fetch('{{ url_for("contractors.save") }}', {
+        method: 'POST',
+        body: formData
+    }).then(res => {
+        if (res.ok) {
+            row.style.transition = 'background 0.3s';
+            row.style.background = '#ecfdf5';
+            setTimeout(() => { row.style.background = ''; }, 1200);
+        }
+    });
+}
+
+// Save new contractor row
+function saveNewContractor() {
+    const name = document.getElementById('new-name').value.trim();
+    if (!name) { alert('Name is required.'); return; }
+    const formData = new URLSearchParams();
+    formData.append('name', name);
+    formData.append('address', document.getElementById('new-address').value);
+    formData.append('ein_ssn_last4', document.getElementById('new-ein').value);
+    formData.append('notes', document.getElementById('new-notes').value);
+    
+    fetch('{{ url_for("contractors.save") }}', {
+        method: 'POST',
+        body: formData
+    }).then(res => {
+        if (res.ok) location.reload();
+        else alert('Failed to save contractor');
+    });
+}
+
+// Delete contractor with confirm
+function deleteContractor(id, name) {
+    if (!confirm('Delete ' + name + '? This will unlink them from all transactions.')) return;
+    fetch('/contractors/' + id + '/delete', { method: 'POST' })
+        .then(res => { if (res.ok) location.reload(); else alert('Failed to delete'); });
+}
+
+// W-9 upload
+async function uploadW9(contractorId, input) {
+    if (!input.files || !input.files[0]) return;
+    const formData = new FormData();
+    formData.append('w9_file', input.files[0]);
+    const label = input.closest('label');
+    label.textContent = '⏳';
+    try {
+        const res = await fetch(`/contractors/${contractorId}/w9`, { method: 'POST', body: formData });
+        if (res.ok) location.reload();
+        else { alert('Failed to upload W-9'); label.textContent = '📎 Upload'; }
+    } catch(err) { alert('Upload error'); label.textContent = '📎 Upload'; }
+}
+
+// W-9 delete
+async function deleteW9(contractorId) {
+    try {
+        const res = await fetch(`/contractors/${contractorId}/w9`, { method: 'DELETE' });
+        if (res.ok) location.reload();
+        else alert('Failed to delete W-9');
+    } catch(err) { alert('Delete error'); }
+}
+</script>
+{% endblock %}

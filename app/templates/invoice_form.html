@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if edit_mode else 'New' }} Invoice — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{{ 'Edit' if edit_mode else 'New' }} Invoice</h2>
+</div>
+
+<form method="POST" action="{{ url_for('invoices.edit', id=invoice.id) if edit_mode else url_for('invoices.create') }}" class="invoice-form">
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="invoice_number">Invoice #</label>
+                <input type="text" id="invoice_number" value="{{ next_number }}" disabled>
+            </div>
+            <div class="form-group">
+                <label for="client_id">Client</label>
+                <select id="client_id" name="client_id" required>
+                    <option value="">Select client...</option>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}" {% if edit_mode and invoice.client_id == client.id %}selected{% endif %}>{{ client.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="date">Invoice Date</label>
+                <input type="date" id="date" name="date" value="{{ today }}" required>
+            </div>
+            <div class="form-group">
+                <label for="terms">Terms</label>
+                <select id="terms" name="terms">
+                    <option value="Net 15" {% if edit_mode and invoice.terms == 'Net 15' %}selected{% endif %}>Net 15</option>
+                    <option value="Net 30" {% if edit_mode and invoice.terms == 'Net 30' %}selected{% endif %}>Net 30</option>
+                    <option value="Due on Receipt" {% if edit_mode and invoice.terms == 'Due on Receipt' %}selected{% endif %}>Due on Receipt</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Line Items</h3>
+        <table class="data-table line-items-table" id="line-items">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="line-items-body">
+                {% if edit_mode and line_items %}
+                {% for item in line_items %}
+                <tr class="line-item-row">
+                    <td>
+                        <select name="line_description">
+                            {% for svc in services %}
+                            <option value="{{ svc }}" {% if item.description == svc %}selected{% endif %}>{{ svc }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="number" name="line_quantity" value="{{ item.quantity }}" min="0" step="any" class="qty-input" onchange="calcAmount(this)"></td>
+                    <td><input type="number" name="line_rate" value="{{ item.rate }}" min="0" step="0.01" class="rate-input" onchange="calcAmount(this)"></td>
+                    <td class="line-amount">${{ '{:,.2f}'.format(item.amount) }}</td>
+                    <td><button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="removeLine(this)">×</button></td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr class="line-item-row">
+                    <td>
+                        <select name="line_description">
+                            {% for svc in services %}
+                            <option value="{{ svc }}">{{ svc }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="number" name="line_quantity" value="1" min="0" step="any" class="qty-input" onchange="calcAmount(this)"></td>
+                    <td><input type="number" name="line_rate" value="0" min="0" step="0.01" class="rate-input" onchange="calcAmount(this)"></td>
+                    <td class="line-amount">$0.00</td>
+                    <td><button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="removeLine(this)">×</button></td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-ghost" onclick="addLine()">+ Add Line Item</button>
+    </div>
+
+    <div class="form-group">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3">{{ invoice.notes if edit_mode else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">{{ 'Update Invoice' if edit_mode else 'Create Invoice' }}</button>
+</form>
+
+<script>
+const services = {{ services | tojson }};
+
+function addLine() {
+    const tbody = document.getElementById('line-items-body');
+    const row = document.createElement('tr');
+    row.className = 'line-item-row';
+    row.innerHTML = `
+        <td>
+            <select name="line_description">
+                ${services.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+        </td>
+        <td><input type="number" name="line_quantity" value="1" min="0" step="any" class="qty-input" onchange="calcAmount(this)"></td>
+        <td><input type="number" name="line_rate" value="0" min="0" step="0.01" class="rate-input" onchange="calcAmount(this)"></td>
+        <td class="line-amount">$0.00</td>
+        <td><button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="removeLine(this)">×</button></td>
+    `;
+    tbody.appendChild(row);
+}
+
+function removeLine(btn) {
+    const rows = document.querySelectorAll('.line-item-row');
+    if (rows.length > 1) {
+        btn.closest('tr').remove();
+    }
+}
+
+function calcAmount(input) {
+    const row = input.closest('tr');
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+    row.querySelector('.line-amount').textContent = '$' + (qty * rate).toFixed(2);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Tax Summary {{ summary.year }} — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Tax Summary — {{ summary.year }}
+        {% if owner and owners %}
+        <span class="badge badge-paid">
+            {% if owner == 'primary' %}{{ owners[0].name }}{% elif owners|length > 1 %}{{ owners[1].name }}{% else %}Spouse{% endif %}
+        </span>
+        {% endif %}
+    </h2>
+</div>
+
+{% if owners|length > 0 %}
+<div class="report-navigation" style="margin-bottom: 16px;">
+    <span style="margin-right: 8px; color: var(--text-muted);">Owner:</span>
+    <a href="{{ url_for('reports.tax_summary', year=summary.year) }}" class="btn btn-ghost btn-sm {% if not owner %}active{% endif %}">Combined</a>
+    {% for o in owners %}
+    <a href="{{ url_for('reports.tax_summary', year=summary.year, owner='primary' if o.is_primary else 'spouse') }}"
+       class="btn btn-ghost btn-sm {% if (owner == 'primary' and o.is_primary) or (owner == 'spouse' and not o.is_primary) %}active{% endif %}">
+        {{ o.name }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<table class="data-table report-table">
+    <tbody>
+        <tr class="section-header">
+            <td colspan="3"><strong>Income</strong></td>
+        </tr>
+        <tr>
+            <td>Total Gross Income</td>
+            <td></td>
+            <td class="col-amount positive">${{ '{:,.2f}'.format(summary.total_income) }}</td>
+        </tr>
+
+        <tr class="section-header">
+            <td><strong>Deductions</strong></td>
+            <td class="col-amount" style="color: var(--text-muted); font-size: 12px;">Gross</td>
+            <td class="col-amount" style="color: var(--text-muted); font-size: 12px;">Deductible</td>
+        </tr>
+        {% for item in summary.expense_items %}
+        <tr>
+            <td>
+                {{ item.name }}
+                {% if item.schedule_c_line %}({{ item.schedule_c_line }}){% endif %}
+                {% if item.deductible_pct < 1.0 %}
+                <span class="badge badge-draft">{{ (item.deductible_pct * 100)|int }}%</span>
+                {% endif %}
+            </td>
+            <td class="col-amount" style="color: var(--text-muted);">
+                {% if item.deductible_pct < 1.0 %}
+                ${{ '{:,.2f}'.format(item.gross) }}
+                {% endif %}
+            </td>
+            <td class="col-amount">${{ '{:,.2f}'.format(item.deductible) }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td>Home Office — Simplified ($5/sqft × 300 sqft)</td>
+            <td></td>
+            <td class="col-amount">${{ '{:,.2f}'.format(summary.home_office_deduction) }}</td>
+        </tr>
+        <tr class="subtotal-row">
+            <td><strong>Total Deductions</strong></td>
+            <td></td>
+            <td class="col-amount"><strong>${{ '{:,.2f}'.format(summary.total_deductions) }}</strong></td>
+        </tr>
+
+        <tr class="section-header">
+            <td colspan="3"><strong>Tax Estimates</strong></td>
+        </tr>
+        <tr class="total-row">
+            <td><strong>Estimated Taxable Income</strong></td>
+            <td></td>
+            <td class="col-amount {% if summary.taxable_income >= 0 %}positive{% else %}negative{% endif %}">
+                <strong>${{ '{:,.2f}'.format(summary.taxable_income) }}</strong>
+            </td>
+        </tr>
+        <tr>
+            <td>Self-Employment Tax (15.3% on 92.35%)</td>
+            <td></td>
+            <td class="col-amount">${{ '{:,.2f}'.format(summary.se_tax) }}</td>
+        </tr>
+        <tr>
+            <td>SE Tax Deduction (½ of SE tax)</td>
+            <td></td>
+            <td class="col-amount">${{ '{:,.2f}'.format(summary.se_deduction) }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="tax-note">
+    <p><em>This is a reference only — not tax advice. Consult a tax professional for your actual filing.</em></p>
+</div>
+{% endblock %}

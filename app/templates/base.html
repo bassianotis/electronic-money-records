@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Big Tech Accounting{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+</head>
+<body>
+    {% if session.get('authenticated') %}
+    <div class="app-layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1>Big Tech</h1>
+                <span class="sidebar-subtitle">Accounting</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('dashboard.index') }}" class="{% if request.endpoint == 'dashboard.index' %}active{% endif %}">Dashboard</a></li>
+                <li><a href="{{ url_for('transactions.index') }}" class="{% if request.endpoint == 'transactions.index' %}active{% endif %}">Transactions</a></li>
+                <li><a href="{{ url_for('transactions.reconcile') }}" class="{% if request.endpoint == 'transactions.reconcile' %}active{% endif %}">Reconcile</a></li>
+                <li><a href="{{ url_for('invoices.index') }}" class="{% if request.endpoint and request.endpoint.startswith('invoices.') %}active{% endif %}">Invoices</a></li>
+                <li><a href="{{ url_for('reports.index') }}" class="{% if request.endpoint and request.endpoint.startswith('reports.') %}active{% endif %}">Reports</a></li>
+                <li><a href="{{ url_for('taxes.dashboard') }}" class="{% if request.endpoint and request.endpoint.startswith('taxes.') %}active{% endif %}">Taxes</a></li>
+                <li><a href="{{ url_for('health.index') }}" class="{% if request.endpoint and request.endpoint.startswith('health.') %}active{% endif %}">Health</a></li>
+                <li><a href="{{ url_for('settings.index') }}" class="{% if request.endpoint and request.endpoint.startswith('settings.') %}active{% endif %}">Settings</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="{{ url_for('auth.logout') }}" class="logout-link">Logout</a>
+            </div>
+        </nav>
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+    <div class="login-wrapper">
+        {% block login_content %}{% endblock %}
+    </div>
+    {% endif %}
+</body>
+</html>

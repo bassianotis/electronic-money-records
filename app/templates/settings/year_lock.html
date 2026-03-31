@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Year Lock — Big Tech Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Year Lock</h2>
+</div>
+
+<div class="card">
+    <p>Lock a tax year to prevent accidental changes. Locked years block category edits, note changes, and imports for transactions in that year.</p>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Year</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for year in years %}
+            <tr>
+                <td><strong>{{ year.year }}</strong></td>
+                <td>
+                    {% if year.locked %}
+                    <span class="badge badge-locked">🔒 Locked ({{ year.locked_at[:10] }})</span>
+                    {% else %}
+                    <span class="badge badge-draft">Unlocked</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if year.locked %}
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="unlockYear('{{ year.year }}')">Unlock</button>
+                    {% else %}
+                    <button type="button" class="btn btn-primary btn-sm" onclick="lockYear('{{ year.year }}')">Lock</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function lockYear(year) {
+    if (!confirm('Lock ' + year + '? This will prevent any edits to transactions in that year.')) return;
+    const form = new URLSearchParams();
+    form.append('year', year);
+    form.append('action', 'lock');
+    fetch('{{ url_for("settings.toggle_year_lock") }}', {
+        method: 'POST',
+        body: form
+    }).then(res => {
+        if (res.ok) location.reload();
+        else alert('Failed to lock year');
+    });
+}
+
+function unlockYear(year) {
+    const typed = prompt('Type ' + year + ' to unlock');
+    if (typed !== year) return;
+    const form = new URLSearchParams();
+    form.append('year', year);
+    form.append('action', 'unlock');
+    fetch('{{ url_for("settings.toggle_year_lock") }}', {
+        method: 'POST',
+        body: form
+    }).then(res => {
+        if (res.ok) location.reload();
+        else alert('Failed to unlock year');
+    });
+}
+</script>
+{% endblock %}
