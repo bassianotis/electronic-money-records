@@ -139,6 +139,36 @@ def update_contractor(id):
     models.update_transaction_contractor(id, contractor_id)
     return '', 204
 
+
+@transaction_bp.route('/<int:id>/quick-rule', methods=['POST'])
+def quick_rule(id):
+    """AJAX endpoint: create a categorization rule from an existing transaction."""
+    from app.categorize import auto_categorize_uncategorized
+    
+    txn = models.get_transaction_by_id(id)
+    if not txn:
+        return jsonify({'success': False, 'message': 'Transaction not found.'}), 404
+        
+    category_id = txn.get('category_id')
+    if not category_id:
+        return jsonify({'success': False, 'message': 'Please select a category in the grid first.'}), 400
+        
+    keyword = request.form.get('keyword', '').strip()
+    if not keyword:
+        # Default fallback if empty
+        keyword = txn.get('description', '').split()[0]
+        
+    auto_apply = request.form.get('auto_apply') == '1'
+    
+    # Priority is hardcoded to 10 for quick rules (medium)
+    models.create_rule(keyword, category_id, 10)
+    
+    if auto_apply:
+        auto_categorize_uncategorized()
+        
+    return jsonify({'success': True, 'message': f'Rule "{keyword}" saved.'})
+
+
 import os
 from werkzeug.utils import secure_filename
 from flask import send_from_directory, current_app

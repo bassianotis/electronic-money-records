@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Login — Big Tech Accounting{% endblock %}
+{% block title %}Login — {{ business_name }}{% endblock %}
 
 {% block login_content %}
 <div class="login-card">
-    <h1>Big Tech</h1>
+    <h1>{{ business_name }}</h1>
     <p class="login-subtitle">Accounting</p>
 
     {% if error %}

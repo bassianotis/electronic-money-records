@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Import — Big Tech Accounting{% endblock %}
+{% block title %}Import — {{ business_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -8,14 +8,34 @@
 
 <div class="import-section">
     <div class="card">
-        <h3>Import Consumers CU CSV</h3>
-        <p>Upload a CSV file exported from your Consumers Credit Union account.</p>
-        <form method="POST" action="{{ url_for('import.upload_ccu') }}" enctype="multipart/form-data">
+        <h3>Import Bank CSV</h3>
+        <p>Select your bank format and target account, then upload your CSV file.</p>
+        <form method="POST" action="{{ url_for('import.upload') }}" enctype="multipart/form-data">
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label for="importer_id">Bank Format</label>
+                    <select id="importer_id" name="importer_id" required>
+                        {% for key, importer in importers.items() %}
+                        <option value="{{ key }}" {% if loop.first %}selected{% endif %}>{{ importer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 2;">
+                    <label for="target_account_id">Target Account</label>
+                    <select id="target_account_id" name="target_account_id" required>
+                        <option value="auto">Auto-detect from file (if supported)</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">{{ account.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
             <div class="form-group">
                 <label for="csv_file">CSV File</label>
                 <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
             </div>
-            <button type="submit" class="btn btn-primary">Import</button>
+            <button type="submit" class="btn btn-primary" style="margin-top: 8px;">Import</button>
         </form>
     </div>
 

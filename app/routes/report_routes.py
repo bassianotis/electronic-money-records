@@ -7,16 +7,23 @@ from .. import models
 report_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
 
+def _is_qjv():
+    """Check if business is configured as QJV (joint venture)."""
+    bconfig = models.get_business_config()
+    return bconfig.get('business_type', 'sole_prop') == 'qjv'
+
+
 @report_bp.route('/')
 def index():
-    return render_template('reports/index.html')
+    return render_template('reports/index.html', is_qjv=_is_qjv())
 
 
 @report_bp.route('/pl')
 def pl():
     year = request.args.get('year', datetime.now().year, type=int)
     quarter = request.args.get('quarter', type=int)
-    owner = request.args.get('owner')  # 'primary', 'spouse', or None
+    is_qjv = _is_qjv()
+    owner = request.args.get('owner') if is_qjv else None
 
     if quarter:
         month_start = (quarter - 1) * 3 + 1
@@ -38,7 +45,7 @@ def pl():
     report = get_pl_report_owner_adjusted(start_date, end_date, owner=owner)
     report['period_label'] = period_label
 
-    owners = models.get_owners()
+    owners = models.get_owners() if is_qjv else []
     locked = models.is_year_locked(year)
 
     return render_template('reports/pl.html',
@@ -48,6 +55,7 @@ def pl():
         owner=owner,
         owners=owners,
         locked=locked,
+        is_qjv=is_qjv,
     )
 
 
@@ -69,12 +77,13 @@ def category_detail(category_id):
 def schedule_c():
     from ..reports import get_schedule_c_report
     year = request.args.get('year', datetime.now().year, type=int)
-    owner = request.args.get('owner', 'primary')
+    is_qjv = _is_qjv()
+    owner = request.args.get('owner', 'primary') if is_qjv else None
     
     report = get_schedule_c_report(year, owner)
-    owners_list = models.get_owners()
+    owners_list = models.get_owners() if is_qjv else []
     
-    owner_name = "Primary Owner"
+    owner_name = "Owner"
     for o in owners_list:
         if owner == 'primary' and o['is_primary']:
             owner_name = o['name']
@@ -86,7 +95,8 @@ def schedule_c():
         year=year,
         owner=owner,
         owner_name=owner_name,
-        owners=owners_list
+        owners=owners_list,
+        is_qjv=is_qjv,
     )
 
 @report_bp.route('/multi-year')
@@ -94,15 +104,17 @@ def multi_year():
     from ..reports import get_multi_year_report
     year_current = request.args.get('year_current', datetime.now().year, type=int)
     year_prior = request.args.get('year_prior', year_current - 1, type=int)
-    owner = request.args.get('owner')
+    is_qjv = _is_qjv()
+    owner = request.args.get('owner') if is_qjv else None
     
     report = get_multi_year_report(year_current, year_prior, owner)
-    owners = models.get_owners()
+    owners = models.get_owners() if is_qjv else []
     
     return render_template('reports/multi_year.html',
         report=report,
         year_current=year_current,
         year_prior=year_prior,
         owner=owner,
-        owners=owners
+        owners=owners,
+        is_qjv=is_qjv,
     )

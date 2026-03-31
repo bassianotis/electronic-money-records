@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: #f5f5f5;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Big Tech Accounting{% endblock %}</title>
+    <title>{% block title %}{{ business_name }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 </head>
-<body>
+<body style="background: #f5f5f5;">
     {% if session.get('authenticated') %}
     <div class="app-layout">
         <nav class="sidebar">
             <div class="sidebar-header">
-                <h1>Big Tech</h1>
+                <h1>{{ business_name }}</h1>
                 <span class="sidebar-subtitle">Accounting</span>
             </div>
             <ul class="nav-links">

@@ -1,4 +1,4 @@
-/* ── Big Tech Accounting — Design System ── */
+/* ── Electronic Money Records — Design System ── */
 
 /* Reset & Base */
 *, *::before, *::after {
@@ -6,6 +6,7 @@
     padding: 0;
     box-sizing: border-box;
 }
+
 
 :root {
     --bg: #f5f5f5;

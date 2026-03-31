@@ -5,20 +5,20 @@ from .. import models
 
 tax_bp = Blueprint('taxes', __name__, url_prefix='/taxes')
 
-JURISDICTIONS = {
-    'federal': {
-        'name': 'Federal',
-        'pay_url': 'https://www.irs.gov/payments/pay-personal-taxes-from-your-bank-account',
-    },
-    'michigan': {
-        'name': 'Michigan',
-        'pay_url': 'https://mitreasury-eservices.michigan.gov/CitizenPortal/_/',
-    },
-    'grand_rapids': {
-        'name': 'Grand Rapids',
-        'pay_url': 'https://michigan-grand-rapids.insourcetax.com/#/',
-    },
-}
+
+def _get_jurisdictions_dict():
+    """Build a jurisdictions dict from DB for template use."""
+    rows = models.get_tax_jurisdictions()
+    result = {}
+    for row in rows:
+        result[row['id']] = {
+            'name': row['name'],
+            'pay_url': row['pay_url'] or '',
+            'tax_rate': row['tax_rate'],
+            'exemption_per_person': row['exemption_per_person'],
+            'enabled': row['enabled'],
+        }
+    return result
 
 
 @tax_bp.route('/')
@@ -29,6 +29,12 @@ def dashboard():
     paid = models.get_tax_payment_totals(year)
     paid_by_q = models.get_tax_payment_totals_by_quarter(year)
     payments = models.get_tax_payments(year)
+    jurisdictions = _get_jurisdictions_dict()
+
+    state_j = jurisdictions.get('state', {})
+    city_j = jurisdictions.get('city', {})
+    state_enabled = state_j.get('enabled', 0)
+    city_enabled = city_j.get('enabled', 0)
 
     # Build quarterly breakdown
     quarters = []
@@ -47,13 +53,13 @@ def dashboard():
                 'target': config.get('quarterly_federal', 0),
                 'paid': paid_by_q.get(('federal', q_key), 0),
             },
-            'michigan': {
+            'state': {
                 'target': config.get('quarterly_state', 0),
-                'paid': paid_by_q.get(('michigan', q_key), 0),
+                'paid': paid_by_q.get(('state', q_key), 0),
             },
-            'grand_rapids': {
+            'city': {
                 'target': config.get('quarterly_city', 0),
-                'paid': paid_by_q.get(('grand_rapids', q_key), 0),
+                'paid': paid_by_q.get(('city', q_key), 0),
             },
         }
         quarters.append(q_data)
@@ -61,13 +67,13 @@ def dashboard():
     # YTD totals
     ytd = {
         'federal': paid.get('federal', 0),
-        'michigan': paid.get('michigan', 0),
-        'grand_rapids': paid.get('grand_rapids', 0),
+        'state': paid.get('state', 0),
+        'city': paid.get('city', 0),
     }
     annual_targets = {
         'federal': config.get('quarterly_federal', 0) * 4,
-        'michigan': config.get('quarterly_state', 0) * 4,
-        'grand_rapids': config.get('quarterly_city', 0) * 4,
+        'state': config.get('quarterly_state', 0) * 4,
+        'city': config.get('quarterly_city', 0) * 4,
     }
 
     # ── Income-Based Projection ──
@@ -96,21 +102,14 @@ def dashboard():
     taxable_after_se = projected_net - se_deduction
 
     # Federal Income Tax Calculation
-    # 1. Start with AGI (Net Income minus 1/2 SE Tax minus Health Insurance Deduction)
     health_totals = models.get_health_insurance_totals(year)
     health_deduction_ytd = health_totals['deductible']
     projected_health_deduction = health_deduction_ytd * annualize_factor
     
     agi = taxable_after_se - projected_health_deduction
-    
-    # 2. Subtract Standard Deduction (MFJ ~ $30,000 for 2025/2026)
     standard_deduction = 30000
-    
-    # 3. Subtract QBI Deduction (20% of QBI, limited to 20% of taxable income before QBI)
     qbi = max(projected_net - se_deduction, 0)
     qbi_deduction = qbi * 0.20
-    
-    # 4. Taxable Income
     federal_taxable = max(agi - standard_deduction - qbi_deduction, 0)
 
     dependents = config.get('dependents', 0)
@@ -136,17 +135,21 @@ def dashboard():
     federal_income_tax_after_credits = max(federal_tax(federal_taxable) - child_tax_credit, 0)
     projected_federal = federal_income_tax_after_credits + projected_se_tax
     
-    # Michigan: 4.25% flat tax, minus $5,600 exemption per person (2 spouses + dependents)
-    mi_exemptions = (2 + dependents) * 5600
-    mi_taxable = max(agi - mi_exemptions, 0)
-    projected_michigan = mi_taxable * 0.0425
+    # State tax: flat rate with per-person exemptions
+    state_rate = state_j.get('tax_rate', 0)
+    state_exemption = state_j.get('exemption_per_person', 0)
+    state_exemptions_total = (2 + dependents) * state_exemption
+    state_taxable = max(agi - state_exemptions_total, 0)
+    projected_state = state_taxable * state_rate if state_enabled else 0
     
-    # Grand Rapids: 1.5% flat tax, minus $600 exemption per person
-    gr_exemptions = (2 + dependents) * 600
-    gr_taxable = max(agi - gr_exemptions, 0)
-    projected_grand_rapids = gr_taxable * 0.015
+    # City tax: flat rate with per-person exemptions
+    city_rate = city_j.get('tax_rate', 0)
+    city_exemption = city_j.get('exemption_per_person', 0)
+    city_exemptions_total = (2 + dependents) * city_exemption
+    city_taxable = max(agi - city_exemptions_total, 0)
+    projected_city = city_taxable * city_rate if city_enabled else 0
 
-    # Safe harbor — threshold based on PRIOR YEAR AGI, not current year
+    # Safe harbor
     from ..reports import get_pl_report_owner_adjusted as get_pl
     prior_year_pl = get_pl(f'{year-1}-01-01', f'{year-1}-12-31')
     prior_year_agi = prior_year_pl['total_income']
@@ -154,20 +157,15 @@ def dashboard():
     safe_harbor_pct = 1.10 if prior_year_over_150k else 1.00
     safe_harbor = {
         'federal': config.get('prior_year_federal', 0) * safe_harbor_pct,
-        'michigan': config.get('prior_year_state', 0) * safe_harbor_pct,
-        'grand_rapids': config.get('prior_year_city', 0) * safe_harbor_pct,
+        'state': config.get('prior_year_state', 0) * safe_harbor_pct,
+        'city': config.get('prior_year_city', 0) * safe_harbor_pct,
         'pct_label': '110%' if prior_year_over_150k else '100%',
         'prior_year_agi': prior_year_agi,
         'prior_year_over_150k': prior_year_over_150k,
     }
 
-    # Current year $150k flag (heads-up, not used for safe harbor calc)
     on_track_150k = projected_income >= 150000
 
-    # Minimum to avoid penalties = lower of:
-    #   (a) safe harbor (100% or 110% of prior year tax)
-    #   (b) 90% of current year projected tax
-    # If no prior year data, use 90% of projected as fallback
     def min_required(projected, sh):
         if sh > 0:
             return min(sh, projected * 0.9)
@@ -175,24 +173,24 @@ def dashboard():
 
     recommended = {
         'federal': min_required(projected_federal, safe_harbor['federal']) / 4,
-        'michigan': min_required(projected_michigan, safe_harbor['michigan']) / 4,
-        'grand_rapids': min_required(projected_grand_rapids, safe_harbor['grand_rapids']) / 4,
+        'state': min_required(projected_state, safe_harbor['state']) / 4,
+        'city': min_required(projected_city, safe_harbor['city']) / 4,
     }
 
     april_deficit = {
         'federal': max(0, projected_federal - (recommended['federal'] * 4)),
-        'michigan': max(0, projected_michigan - (recommended['michigan'] * 4)),
-        'grand_rapids': max(0, projected_grand_rapids - (recommended['grand_rapids'] * 4)),
+        'state': max(0, projected_state - (recommended['state'] * 4)),
+        'city': max(0, projected_city - (recommended['city'] * 4)),
     }
-    april_deficit['total'] = april_deficit['federal'] + april_deficit['michigan'] + april_deficit['grand_rapids']
+    april_deficit['total'] = april_deficit['federal'] + april_deficit['state'] + april_deficit['city']
 
     projection = {
         'ytd_income': ytd_income,
         'projected_income': projected_income,
         'projected_net': projected_net,
         'projected_federal': projected_federal,
-        'projected_michigan': projected_michigan,
-        'projected_grand_rapids': projected_grand_rapids,
+        'projected_state': projected_state,
+        'projected_city': projected_city,
         'projected_se_tax': projected_se_tax,
         'annualize_factor': annualize_factor,
         'on_track_150k': on_track_150k,
@@ -202,16 +200,17 @@ def dashboard():
         'qbi_deduction': qbi_deduction,
         'federal_taxable': federal_taxable,
         'child_tax_credit': child_tax_credit,
-        'mi_exemptions': mi_exemptions,
-        'mi_taxable': mi_taxable,
-        'gr_exemptions': gr_exemptions,
-        'gr_taxable': gr_taxable,
+        'state_exemptions': state_exemptions_total,
+        'state_taxable': state_taxable,
+        'city_exemptions': city_exemptions_total,
+        'city_taxable': city_taxable,
     }
 
     return render_template('taxes/dashboard.html',
         year=year, config=config, quarters=quarters,
         ytd=ytd, annual_targets=annual_targets,
-        payments=payments, jurisdictions=JURISDICTIONS,
+        payments=payments, jurisdictions=jurisdictions,
+        state_enabled=state_enabled, city_enabled=city_enabled,
         projection=projection, safe_harbor=safe_harbor,
         recommended=recommended, april_deficit=april_deficit)
 

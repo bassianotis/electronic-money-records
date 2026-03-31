@@ -1,7 +1,7 @@
 services:
   accounting:
     build: .
-    container_name: big-tech-accounting
+    container_name: electronic-money-records
     restart: unless-stopped
     ports:
       - "5001:5001"

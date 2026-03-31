@@ -304,8 +304,8 @@ def get_next_invoice_number():
     db = get_db()
     row = db.execute('SELECT MAX(invoice_number) FROM invoices').fetchone()
     if row[0] is None:
-        from . import config
-        return config.INVOICE_START_NUMBER
+        bconfig = get_business_config()
+        return int(bconfig.get('invoice_start_number', 1001))
     return row[0] + 1
 
 
@@ -746,3 +746,100 @@ def update_transaction_receipt(transaction_id, filename):
     db = get_db()
     db.execute('UPDATE transactions SET receipt_file = ? WHERE id = ?', (filename, transaction_id))
     db.commit()
+
+
+# ── Business Config ──
+
+def get_business_config():
+    """Get all business config as a dict with defaults."""
+    db = get_db()
+    rows = db.execute('SELECT key, value FROM business_config').fetchall()
+    config = {row['key']: row['value'] for row in rows}
+    # Merge with defaults
+    defaults = {
+        'business_name': 'My Business LLC',
+        'business_type': 'sole_prop',
+        'address_line1': '',
+        'address_line2': '',
+        'email': '',
+        'phone': '',
+        'invoice_terms': 'Net 15',
+        'invoice_start_number': '1001',
+        'services': 'Consulting,Services',
+    }
+    for k, v in defaults.items():
+        if k not in config:
+            config[k] = v
+    return config
+
+def set_business_config(key, value):
+    """Set a single business config value."""
+    db = get_db()
+    db.execute(
+        'INSERT INTO business_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?',
+        (key, value, value)
+    )
+    db.commit()
+
+def set_business_config_bulk(data):
+    """Set multiple business config values at once."""
+    db = get_db()
+    for key, value in data.items():
+        db.execute(
+            'INSERT INTO business_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?',
+            (key, value, value)
+        )
+    db.commit()
+
+
+# ── Tax Jurisdictions ──
+
+def get_tax_jurisdictions():
+    """Get all tax jurisdictions."""
+    db = get_db()
+    rows = db.execute('SELECT * FROM tax_jurisdictions ORDER BY id').fetchall()
+    if not rows:
+        # Seed defaults on first access
+        _seed_default_jurisdictions(db)
+        rows = db.execute('SELECT * FROM tax_jurisdictions ORDER BY id').fetchall()
+    return rows
+
+def get_tax_jurisdiction(jid):
+    """Get a single jurisdiction by ID."""
+    db = get_db()
+    return db.execute('SELECT * FROM tax_jurisdictions WHERE id = ?', (jid,)).fetchone()
+
+def save_tax_jurisdiction(jid, name, tax_rate, exemption_per_person, pay_url, enabled):
+    """Create or update a tax jurisdiction."""
+    db = get_db()
+    db.execute('''
+        INSERT INTO tax_jurisdictions (id, name, tax_rate, exemption_per_person, pay_url, enabled)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name=?, tax_rate=?, exemption_per_person=?, pay_url=?, enabled=?
+    ''', (jid, name, tax_rate, exemption_per_person, pay_url, enabled,
+          name, tax_rate, exemption_per_person, pay_url, enabled))
+    db.commit()
+
+def delete_tax_jurisdiction(jid):
+    """Delete a tax jurisdiction (cannot delete 'federal')."""
+    if jid == 'federal':
+        return
+    db = get_db()
+    db.execute('DELETE FROM tax_jurisdictions WHERE id = ?', (jid,))
+    db.commit()
+
+def _seed_default_jurisdictions(db):
+    """Seed default federal/state/city jurisdictions."""
+    defaults = [
+        ('federal', 'Federal', 0, 0, 'https://www.irs.gov/payments', 1),
+        ('state', 'State', 0.0425, 5600, '', 1),
+        ('city', 'City', 0, 0, '', 0),
+    ]
+    for jid, name, rate, exemption, url, enabled in defaults:
+        db.execute('''
+            INSERT OR IGNORE INTO tax_jurisdictions (id, name, tax_rate, exemption_per_person, pay_url, enabled)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (jid, name, rate, exemption, url, enabled))
+    db.commit()
+

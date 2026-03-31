@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Tax Jurisdictions — {{ business_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Tax Jurisdictions</h2>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <p style="color: var(--text-secondary);">
+        Configure your state and city tax rates. Federal tax brackets are IRS-standard and computed automatically.
+        State and city taxes are flat-rate with per-person exemptions.
+    </p>
+</div>
+
+{% for j in jurisdictions %}
+<div class="card" style="margin-bottom: 16px; {% if not j.enabled and j.id != 'federal' %}opacity: 0.5;{% endif %}">
+    <form method="POST" action="{{ url_for('settings.save_tax_jurisdiction') }}">
+        <input type="hidden" name="id" value="{{ j.id }}">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="margin: 0;">
+                {% if j.id == 'federal' %}🏛️{% elif j.id == 'state' %}🗺️{% else %}🏙️{% endif %}
+                {{ j.name }}
+            </h3>
+            {% if j.id != 'federal' %}
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary);">
+                <input type="checkbox" name="enabled" value="1" {% if j.enabled %}checked{% endif %}>
+                Enabled
+            </label>
+            {% endif %}
+        </div>
+
+        {% if j.id == 'federal' %}
+        <p style="color: var(--text-secondary); font-size: 0.85rem;">
+            Federal income tax uses IRS progressive brackets (automatically updated). Self-employment tax is 15.3%.
+            No configuration needed.
+        </p>
+        <div class="form-group">
+            <label for="pay_url_{{ j.id }}">Payment URL</label>
+            <input type="url" id="pay_url_{{ j.id }}" name="pay_url" value="{{ j.pay_url or '' }}" placeholder="https://www.irs.gov/payments">
+        </div>
+        {% else %}
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name_{{ j.id }}">Jurisdiction Name</label>
+                <input type="text" id="name_{{ j.id }}" name="name" value="{{ j.name }}" required placeholder="e.g., Michigan">
+            </div>
+            <div class="form-group" style="max-width: 150px;">
+                <label for="rate_{{ j.id }}">Tax Rate (%)</label>
+                <input type="number" id="rate_{{ j.id }}" name="tax_rate" value="{{ (j.tax_rate * 100)|round(4) }}" step="0.001" min="0" max="100">
+            </div>
+            <div class="form-group" style="max-width: 200px;">
+                <label for="exempt_{{ j.id }}">Exemption / Person ($)</label>
+                <input type="number" id="exempt_{{ j.id }}" name="exemption_per_person" value="{{ j.exemption_per_person|int }}" step="1" min="0">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="pay_url_{{ j.id }}">Payment URL</label>
+            <input type="url" id="pay_url_{{ j.id }}" name="pay_url" value="{{ j.pay_url or '' }}" placeholder="https://...">
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    </form>
+</div>
+{% endfor %}
+{% endblock %}

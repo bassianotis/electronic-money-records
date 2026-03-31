@@ -1,7 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Taxes {{ year }} — Big Tech Accounting{% endblock %}
+{% block title %}Taxes {{ year }} — {{ business_name }}{% endblock %}
 
 {% block content %}
+{% set state_name = jurisdictions.state.name if jurisdictions.state is defined else 'State' %}
+{% set city_name = jurisdictions.city.name if jurisdictions.city is defined else 'City' %}
+{% set state_rate = jurisdictions.state.tax_rate if jurisdictions.state is defined else 0 %}
+{% set city_rate = jurisdictions.city.tax_rate if jurisdictions.city is defined else 0 %}
+
 <div class="page-header">
     <div style="display: flex; align-items: center; gap: 16px;">
         <h2 style="margin: 0;">Estimated Taxes</h2>
@@ -67,17 +72,21 @@
                     <td>Federal (Income + SE)</td>
                     <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_federal) }}</td>
                 </tr>
+                {% if state_enabled %}
                 <tr>
-                    <td>Michigan (4.25%)</td>
-                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_michigan) }}</td>
+                    <td>{{ state_name }} ({{ '{:.2f}'.format(state_rate * 100) }}%)</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_state) }}</td>
                 </tr>
+                {% endif %}
+                {% if city_enabled %}
                 <tr>
-                    <td>Grand Rapids (1.5%)</td>
-                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_grand_rapids) }}</td>
+                    <td>{{ city_name }} ({{ '{:.2f}'.format(city_rate * 100) }}%)</td>
+                    <td class="col-amount">${{ '{:,.2f}'.format(projection.projected_city) }}</td>
                 </tr>
+                {% endif %}
                 <tr class="total-row">
                     <td><strong>Total Projected Tax</strong></td>
-                    <td class="col-amount"><strong>${{ '{:,.2f}'.format(projection.projected_federal + projection.projected_michigan + projection.projected_grand_rapids) }}</strong></td>
+                    <td class="col-amount"><strong>${{ '{:,.2f}'.format(projection.projected_federal + projection.projected_state + projection.projected_city) }}</strong></td>
                 </tr>
             </tbody>
         </table>
@@ -85,7 +94,7 @@
 
     <!-- Calculations Breakdown -->
     <div style="margin-top: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.9rem;">
-        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary);">🧮 Calculations & Deductions Breakdown</h4>
+        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary);">🧮 Calculations &amp; Deductions Breakdown</h4>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
             <div>
                 <strong>Federal Tax</strong>
@@ -99,24 +108,28 @@
                     <li>+ SE Tax: ${{ '{:,.2f}'.format(projection.projected_se_tax) }}</li>
                 </ul>
             </div>
+            {% if state_enabled %}
             <div>
-                <strong>Michigan Tax</strong>
+                <strong>{{ state_name }} Tax</strong>
                 <ul style="padding-left: 20px; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
                     <li>+ Adjusted Gross Income: ${{ '{:,.2f}'.format(projection.agi) }}</li>
-                    <li>- Exemptions (Dependents): ${{ '{:,.2f}'.format(projection.mi_exemptions) }}</li>
-                    <li style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 4px; color: var(--text-primary);"><strong>Taxable Income: ${{ '{:,.2f}'.format(projection.mi_taxable) }}</strong></li>
-                    <li>* Flat Rate: 4.25%</li>
+                    <li>- Exemptions (Dependents): ${{ '{:,.2f}'.format(projection.state_exemptions) }}</li>
+                    <li style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 4px; color: var(--text-primary);"><strong>Taxable Income: ${{ '{:,.2f}'.format(projection.state_taxable) }}</strong></li>
+                    <li>× Flat Rate: {{ '{:.2f}'.format(state_rate * 100) }}%</li>
                 </ul>
             </div>
+            {% endif %}
+            {% if city_enabled %}
             <div>
-                <strong>Grand Rapids Tax</strong>
+                <strong>{{ city_name }} Tax</strong>
                 <ul style="padding-left: 20px; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
                     <li>+ Adjusted Gross Income: ${{ '{:,.2f}'.format(projection.agi) }}</li>
-                    <li>- Exemptions (Dependents): ${{ '{:,.2f}'.format(projection.gr_exemptions) }}</li>
-                    <li style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 4px; color: var(--text-primary);"><strong>Taxable Income: ${{ '{:,.2f}'.format(projection.gr_taxable) }}</strong></li>
-                    <li>* Flat Rate: 1.5%</li>
+                    <li>- Exemptions (Dependents): ${{ '{:,.2f}'.format(projection.city_exemptions) }}</li>
+                    <li style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 4px; color: var(--text-primary);"><strong>Taxable Income: ${{ '{:,.2f}'.format(projection.city_taxable) }}</strong></li>
+                    <li>× Flat Rate: {{ '{:.2f}'.format(city_rate * 100) }}%</li>
                 </ul>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -146,7 +159,9 @@
                 </tr>
             </thead>
             <tbody>
-                {% for jkey, jinfo in jurisdictions.items() %}
+                {% for jkey in ['federal', 'state', 'city'] %}
+                {% if jkey == 'federal' or (jkey == 'state' and state_enabled) or (jkey == 'city' and city_enabled) %}
+                {% set jinfo = jurisdictions[jkey] %}
                 {% set target = q[jkey].target %}
                 {% set paid_amt = q[jkey].paid %}
                 {% set remaining = target - paid_amt %}
@@ -157,8 +172,13 @@
                     <td class="col-amount {% if remaining > 0 %}negative{% elif remaining <= 0 %}positive{% endif %}">
                         {% if remaining <= 0 %}✓ Paid{% else %}${{ '{:,.2f}'.format(remaining) }}{% endif %}
                     </td>
-                    <td><a href="{{ jinfo.pay_url }}" target="_blank" class="btn btn-ghost btn-sm">Pay →</a></td>
+                    <td>
+                        {% if jinfo.pay_url %}
+                        <a href="{{ jinfo.pay_url }}" target="_blank" class="btn btn-ghost btn-sm">Pay →</a>
+                        {% endif %}
+                    </td>
                 </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>
@@ -179,7 +199,9 @@
             </tr>
         </thead>
         <tbody>
-            {% for jkey, jinfo in jurisdictions.items() %}
+            {% for jkey in ['federal', 'state', 'city'] %}
+            {% if jkey == 'federal' or (jkey == 'state' and state_enabled) or (jkey == 'city' and city_enabled) %}
+            {% set jinfo = jurisdictions[jkey] %}
             {% set target = annual_targets[jkey] %}
             {% set paid_amt = ytd[jkey] %}
             <tr>
@@ -190,6 +212,7 @@
                     {% if target - paid_amt <= 0 %}✓ Paid in full{% else %}${{ '{:,.2f}'.format(target - paid_amt) }}{% endif %}
                 </td>
             </tr>
+            {% endif %}
             {% endfor %}
             <tr class="total-row">
                 <td><strong>Total</strong></td>
@@ -221,8 +244,8 @@
                 <label>Jurisdiction</label>
                 <select name="jurisdiction" required>
                     <option value="federal">Federal</option>
-                    <option value="michigan">Michigan</option>
-                    <option value="grand_rapids">Grand Rapids</option>
+                    {% if state_enabled %}<option value="state">{{ state_name }}</option>{% endif %}
+                    {% if city_enabled %}<option value="city">{{ city_name }}</option>{% endif %}
                 </select>
             </div>
             <div class="form-group">
@@ -273,7 +296,7 @@
             {% for p in payments %}
             <tr>
                 <td>{{ p.date }}</td>
-                <td>{{ jurisdictions[p.jurisdiction].name }}</td>
+                <td>{% if jurisdictions[p.jurisdiction] is defined %}{{ jurisdictions[p.jurisdiction].name }}{% else %}{{ p.jurisdiction }}{% endif %}</td>
                 <td>{{ p.quarter }}</td>
                 <td class="col-amount">${{ '{:,.2f}'.format(p.amount) }}</td>
                 <td>{{ p.confirmation_number or '—' }}</td>
@@ -316,12 +339,16 @@
             </tr>
         </thead>
         <tbody>
-            {% set sh_juris = [
+            {% set sh_data = [
                 ('Federal', safe_harbor.federal, annual_targets.federal, recommended.federal),
-                ('Michigan', safe_harbor.michigan, annual_targets.michigan, recommended.michigan),
-                ('Grand Rapids', safe_harbor.grand_rapids, annual_targets.grand_rapids, recommended.grand_rapids),
             ] %}
-            {% for name, sh, annual, rec in sh_juris %}
+            {% if state_enabled %}
+                {% set sh_data = sh_data + [(state_name, safe_harbor.state, annual_targets.state, recommended.state)] %}
+            {% endif %}
+            {% if city_enabled %}
+                {% set sh_data = sh_data + [(city_name, safe_harbor.city, annual_targets.city, recommended.city)] %}
+            {% endif %}
+            {% for name, sh, annual, rec in sh_data %}
             <tr>
                 <td>{{ name }}</td>
                 <td class="col-amount">{% if sh > 0 %}${{ '{:,.2f}'.format(sh) }}{% else %}—{% endif %}</td>
@@ -341,9 +368,9 @@
             <tr class="total-row">
                 <td><strong>Total</strong></td>
                 <td></td>
-                <td class="col-amount"><strong>${{ '{:,.2f}'.format((annual_targets.federal + annual_targets.michigan + annual_targets.grand_rapids) / 4) }}</strong></td>
+                <td class="col-amount"><strong>${{ '{:,.2f}'.format(annual_targets.values()|sum / 4) }}</strong></td>
                 <td class="col-amount" style="background: #f8faff; font-weight: 600;">
-                    <strong>${{ '{:,.2f}'.format(recommended.federal + recommended.michigan + recommended.grand_rapids) }}</strong>
+                    <strong>${{ '{:,.2f}'.format(recommended.values()|sum) }}</strong>
                 </td>
                 <td></td>
             </tr>
@@ -365,14 +392,18 @@
                 <label>Quarterly Federal</label>
                 <input type="number" name="quarterly_federal" step="0.01" value="{{ config.quarterly_federal }}">
             </div>
+            {% if state_enabled %}
             <div class="form-group">
-                <label>Quarterly Michigan</label>
+                <label>Quarterly {{ state_name }}</label>
                 <input type="number" name="quarterly_state" step="0.01" value="{{ config.quarterly_state }}">
             </div>
+            {% endif %}
+            {% if city_enabled %}
             <div class="form-group">
-                <label>Quarterly Grand Rapids</label>
+                <label>Quarterly {{ city_name }}</label>
                 <input type="number" name="quarterly_city" step="0.01" value="{{ config.quarterly_city }}">
             </div>
+            {% endif %}
         </div>
         <h4 style="margin-top: 16px;">Safe Harbor (Prior Year)</h4>
         <div class="form-row">
@@ -380,14 +411,18 @@
                 <label>Prior Year Federal Tax</label>
                 <input type="number" name="prior_year_federal" step="0.01" value="{{ config.prior_year_federal }}">
             </div>
+            {% if state_enabled %}
             <div class="form-group">
-                <label>Prior Year State Tax</label>
+                <label>Prior Year {{ state_name }} Tax</label>
                 <input type="number" name="prior_year_state" step="0.01" value="{{ config.prior_year_state }}">
             </div>
+            {% endif %}
+            {% if city_enabled %}
             <div class="form-group">
-                <label>Prior Year City Tax</label>
+                <label>Prior Year {{ city_name }} Tax</label>
                 <input type="number" name="prior_year_city" step="0.01" value="{{ config.prior_year_city }}">
             </div>
+            {% endif %}
         </div>
         <h4 style="margin-top: 16px;">Lifestyle Exemptions</h4>
         <div class="form-row">

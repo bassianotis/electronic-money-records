@@ -1,4 +1,4 @@
-"""Entry point for the Big Tech Accounting app."""
+"""Entry point for the Electronic Money Records app."""
 from app import create_app
 
 app = create_app()

@@ -1,104 +1,106 @@
-"""Business configuration and defaults for Big Tech Accounting."""
+"""Business configuration and defaults for the generalized Accounting Suite.
 
+NOTE: Business identity, services, and invoice settings are now
+configured via Settings → Business Profile (stored in the DB).
+The values below are only used as initial defaults for config.py
+references that haven't been migrated yet.
+"""
+
+# Legacy defaults — override via Settings → Business Profile
 BUSINESS_INFO = {
-    'name': 'Big Tech LLC',
-    'address_line1': '1057 Fuller Ave SE',
-    'address_line2': 'Grand Rapids, MI 49506-3244',
-    'email': 'billing@meetbigtech.com',
-    'phone': '+1 (616) 690-8952',
+    'name': 'My Business LLC',
+    'address_line1': '',
+    'address_line2': '',
+    'email': '',
+    'phone': '',
 }
 
-# Invoice config
-INVOICE_START_NUMBER = 1037
+# Invoice config (legacy — override via Settings → Business Profile)
+INVOICE_START_NUMBER = 1001
 INVOICE_DEFAULT_TERMS = 'Net 15'
 
-# Services offered (for invoice line items)
+# Services offered (legacy — override via Settings → Business Profile)
 SERVICES = [
-    'Product Management',
-    'Design',
-    'General Business Support',
-    'Reimbursable Expenses',
+    'Consulting',
     'Services',
-    'Web Development',
-    'Web Hosting',
 ]
 
-# Default expense categories with Schedule C line mapping
+# Default expense categories — IRS Schedule C line mapping
+# These seed on first install. Users can add/edit/delete via Settings → Categories.
 DEFAULT_CATEGORIES = [
     # Income
     {'name': 'Income', 'type': 'income', 'schedule_c_line': 'Line 1'},
-    # Expenses
+    {'name': 'Other Income', 'type': 'income', 'schedule_c_line': 'Line 6'},
+    # Expenses — mirrors IRS Schedule C lines
+    {'name': 'Advertising', 'type': 'expense', 'schedule_c_line': 'Line 8'},
+    {'name': 'Car & Truck', 'type': 'expense', 'schedule_c_line': 'Line 9'},
+    {'name': 'Commissions & Fees', 'type': 'expense', 'schedule_c_line': 'Line 10'},
+    {'name': 'Contract Labor', 'type': 'expense', 'schedule_c_line': 'Line 11'},
+    {'name': 'Insurance', 'type': 'expense', 'schedule_c_line': 'Line 15'},
+    {'name': 'Interest (Mortgage)', 'type': 'expense', 'schedule_c_line': 'Line 16a'},
+    {'name': 'Interest (Other)', 'type': 'expense', 'schedule_c_line': 'Line 16b'},
+    {'name': 'Legal & Professional', 'type': 'expense', 'schedule_c_line': 'Line 17'},
+    {'name': 'Office Expenses', 'type': 'expense', 'schedule_c_line': 'Line 18'},
     {'name': 'Software & Subscriptions', 'type': 'expense', 'schedule_c_line': 'Line 18'},
+    {'name': 'Rent (Business Property)', 'type': 'expense', 'schedule_c_line': 'Line 20b'},
+    {'name': 'Repairs & Maintenance', 'type': 'expense', 'schedule_c_line': 'Line 21'},
+    {'name': 'Supplies', 'type': 'expense', 'schedule_c_line': 'Line 22'},
+    {'name': 'Taxes & Licenses', 'type': 'expense', 'schedule_c_line': 'Line 23'},
     {'name': 'Travel - Airfare', 'type': 'expense', 'schedule_c_line': 'Line 24a'},
     {'name': 'Travel - Lodging', 'type': 'expense', 'schedule_c_line': 'Line 24a'},
-    {'name': 'Travel - Meals', 'type': 'expense', 'schedule_c_line': 'Line 24b'},
     {'name': 'Travel - Transport', 'type': 'expense', 'schedule_c_line': 'Line 24a'},
-    {'name': 'Travel - Visas', 'type': 'expense', 'schedule_c_line': 'Line 24a'},
-    {'name': 'Contract Labor', 'type': 'expense', 'schedule_c_line': 'Line 11'},
+    {'name': 'Travel - Meals', 'type': 'expense', 'schedule_c_line': 'Line 24b'},
     {'name': 'Business Meals', 'type': 'expense', 'schedule_c_line': 'Line 24b'},
+    {'name': 'Utilities', 'type': 'expense', 'schedule_c_line': 'Line 25'},
     {'name': 'Home Office', 'type': 'expense', 'schedule_c_line': 'Line 30'},
-    {'name': 'Web Hosting', 'type': 'expense', 'schedule_c_line': 'Line 18'},
-    {'name': 'State Filing Fees', 'type': 'expense', 'schedule_c_line': 'Line 23'},
     # Transfers (not on P&L)
     {'name': 'Transfer', 'type': 'transfer', 'schedule_c_line': None},
-    {'name': 'Owner Draw (Payroll)', 'type': 'transfer', 'schedule_c_line': None},
+    {'name': 'Owner Draw', 'type': 'transfer', 'schedule_c_line': None},
 ]
 
 # Default categorization rules (keyword → category name)
+# These seed on first install. Users can add/edit/delete via Settings → Categorization Rules.
+# Only universally recognizable vendors are included.
 DEFAULT_RULES = [
     # Software & Subscriptions
-    {'keyword': 'FIGMA', 'category': 'Software & Subscriptions', 'priority': 10},
+    {'keyword': 'ADOBE', 'category': 'Software & Subscriptions', 'priority': 10},
+    {'keyword': 'GOOGLE*CLOUD', 'category': 'Software & Subscriptions', 'priority': 10},
+    {'keyword': 'MICROSOFT', 'category': 'Software & Subscriptions', 'priority': 5},
+    {'keyword': 'APPLE.COM', 'category': 'Software & Subscriptions', 'priority': 5},
     {'keyword': 'OPENAI', 'category': 'Software & Subscriptions', 'priority': 10},
-    {'keyword': 'BOTPRESS', 'category': 'Software & Subscriptions', 'priority': 10},
-    {'keyword': 'ELEMENTOR', 'category': 'Software & Subscriptions', 'priority': 10},
-    {'keyword': 'CARGO', 'category': 'Software & Subscriptions', 'priority': 10},
-    {'keyword': 'Adobe', 'category': 'Software & Subscriptions', 'priority': 10},
-    # Web Hosting
-    {'keyword': 'SITEGROUND', 'category': 'Web Hosting', 'priority': 10},
+    {'keyword': 'DROPBOX', 'category': 'Software & Subscriptions', 'priority': 10},
+    {'keyword': 'SLACK', 'category': 'Software & Subscriptions', 'priority': 10},
+    {'keyword': 'ZOOM', 'category': 'Software & Subscriptions', 'priority': 10},
+    # Office Expenses
+    {'keyword': 'AMAZON', 'category': 'Office Expenses', 'priority': 3},
+    {'keyword': 'STAPLES', 'category': 'Office Expenses', 'priority': 10},
+    {'keyword': 'OFFICE DEPOT', 'category': 'Office Expenses', 'priority': 10},
     # Travel - Airfare
     {'keyword': 'DELTA', 'category': 'Travel - Airfare', 'priority': 10},
     {'keyword': 'UNITED', 'category': 'Travel - Airfare', 'priority': 10},
-    {'keyword': 'AMERICAN', 'category': 'Travel - Airfare', 'priority': 10},
+    {'keyword': 'AMERICAN AIR', 'category': 'Travel - Airfare', 'priority': 10},
+    {'keyword': 'SOUTHWEST', 'category': 'Travel - Airfare', 'priority': 10},
+    {'keyword': 'JETBLUE', 'category': 'Travel - Airfare', 'priority': 10},
     # Travel - Transport
-    {'keyword': 'CURB', 'category': 'Travel - Transport', 'priority': 10},
-    {'keyword': 'MTA*METROCARD', 'category': 'Travel - Transport', 'priority': 10},
-    {'keyword': 'OMNY', 'category': 'Travel - Transport', 'priority': 10},
-    {'keyword': 'NJT MOBILE', 'category': 'Travel - Transport', 'priority': 10},
+    {'keyword': 'UBER', 'category': 'Travel - Transport', 'priority': 10},
+    {'keyword': 'LYFT', 'category': 'Travel - Transport', 'priority': 10},
     {'keyword': 'HERTZ', 'category': 'Travel - Transport', 'priority': 10},
+    {'keyword': 'ENTERPRISE', 'category': 'Travel - Transport', 'priority': 10},
     # Travel - Lodging
+    {'keyword': 'HILTON', 'category': 'Travel - Lodging', 'priority': 10},
+    {'keyword': 'MARRIOTT', 'category': 'Travel - Lodging', 'priority': 10},
+    {'keyword': 'AIRBNB', 'category': 'Travel - Lodging', 'priority': 10},
     {'keyword': 'BOOKING.COM', 'category': 'Travel - Lodging', 'priority': 10},
-    {'keyword': 'KLARNA*BOOKING', 'category': 'Travel - Lodging', 'priority': 10},
-    {'keyword': 'KLARNA* BOOKING', 'category': 'Travel - Lodging', 'priority': 10},
-    # Travel - Visas
-    {'keyword': 'ETA-IL', 'category': 'Travel - Visas', 'priority': 10},
-    {'keyword': 'International Transaction Fee', 'category': 'Travel - Visas', 'priority': 10},
-    # State Filing
-    {'keyword': 'MI CORPORATIONS DIV', 'category': 'State Filing Fees', 'priority': 10},
-    # QuickBooks (will stop appearing after cancellation)
-    {'keyword': 'INTUIT', 'category': 'Software & Subscriptions', 'priority': 5},
-    {'keyword': 'QBOOKS', 'category': 'Software & Subscriptions', 'priority': 5},
-    # Income - clients
-    {'keyword': 'BRYA', 'category': 'Income', 'priority': 10},
-    {'keyword': 'Common Agency', 'category': 'Income', 'priority': 10},
-    {'keyword': 'Kind Collective', 'category': 'Income', 'priority': 10},
-    {'keyword': 'Lakeshore', 'category': 'Income', 'priority': 10},
-    {'keyword': 'VENMO', 'category': 'Income', 'priority': 5},
+    # Business Meals
+    {'keyword': 'DOORDASH', 'category': 'Business Meals', 'priority': 5},
+    {'keyword': 'GRUBHUB', 'category': 'Business Meals', 'priority': 5},
+    {'keyword': 'UBER EATS', 'category': 'Business Meals', 'priority': 5},
     # Transfers
+    {'keyword': 'Transfer', 'category': 'Transfer', 'priority': 20},
     {'keyword': 'Tfr to', 'category': 'Transfer', 'priority': 20},
     {'keyword': 'Tfr from', 'category': 'Transfer', 'priority': 20},
-    {'keyword': 'Transfer Withdrawal', 'category': 'Transfer', 'priority': 20},
-    {'keyword': 'Transfer Deposit', 'category': 'Transfer', 'priority': 20},
-    {'keyword': 'Dividend Credit', 'category': 'Transfer', 'priority': 15},
 ]
 
-# Account mappings from CCU exports
-DEFAULT_ACCOUNTS = [
-    {'name': 'Check Deposits', 'account_id': 'CKG|9201862423',
-     'description': 'Income deposits from clients'},
-    {'name': 'Expenses', 'account_id': 'CKG|9201862456',
-     'description': 'Business expenses'},
-    {'name': 'Payroll', 'account_id': 'CKG|9201862464',
-     'description': 'Pass-through to personal checking'},
-    {'name': 'Savings', 'account_id': 'SAV|9103272069',
-     'description': 'Savings account'},
-]
+# Default accounts — empty, users configure via Settings → Bank Accounts
+DEFAULT_ACCOUNTS = []
+

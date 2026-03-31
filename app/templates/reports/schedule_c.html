@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Schedule C Output — Big Tech Accounting{% endblock %}
+{% block title %}Schedule C Output — {{ business_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -30,8 +30,8 @@
 {% endif %}
 
 <div class="card" style="margin-bottom: 24px; text-align: center; border-bottom: 4px solid var(--primary);">
-    <h3 style="margin-top: 0; margin-bottom: 8px;">{{ owner_name }}</h3>
-    <p style="margin: 0; color: var(--text-muted); font-size: 1.1rem;">Profit or Loss From Business (Sole Proprietorship / QJV)</p>
+    {% if is_qjv %}<h3 style="margin-top: 0; margin-bottom: 8px;">{{ owner_name }}</h3>{% endif %}
+    <p style="margin: 0; color: var(--text-muted); font-size: 1.1rem;">Profit or Loss From Business (Sole Proprietorship{% if is_qjv %} / QJV{% endif %})</p>
 </div>
 
 <div class="card" style="margin-bottom: 24px;">
@@ -73,7 +73,7 @@
                 <td style="font-weight: 500; color: var(--text-muted);">Line 30</td>
                 <td>
                     <div style="font-weight: 500;">Business use of home (Safe Harbor)</div>
-                    <div style="font-size: 0.85em; color: var(--text-muted); margin-top: 4px;">300 sq ft max at $5/sq ft mapped per owner</div>
+                    <div style="font-size: 0.85em; color: var(--text-muted); margin-top: 4px;">300 sq ft max at $5/sq ft (Safe Harbor Method)</div>
                 </td>
                 <td style="text-align: right; font-weight: 500;">
                     ${{ '{:,.2f}'.format(report.home_office_deduction) }}

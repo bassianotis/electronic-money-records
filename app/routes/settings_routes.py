@@ -10,7 +10,8 @@ settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
 @settings_bp.route('/')
 def index():
-    return render_template('settings/index.html')
+    bconfig = models.get_business_config()
+    return render_template('settings/index.html', business_type=bconfig.get('business_type', 'sole_prop'))
 
 
 # ── Categories ──
@@ -151,6 +152,60 @@ def update_client(id):
         models.update_client(id, name, address, email)
         flash('Client updated.', 'success')
     return redirect(url_for('settings.clients'))
+
+
+# ── Business Profile ──
+
+@settings_bp.route('/business')
+def business_profile():
+    config = models.get_business_config()
+    return render_template('settings/business.html', config=config)
+
+@settings_bp.route('/business/save', methods=['POST'])
+def save_business_profile():
+    data = {
+        'business_name': request.form.get('business_name', '').strip(),
+        'business_type': request.form.get('business_type', 'sole_prop').strip(),
+        'address_line1': request.form.get('address_line1', '').strip(),
+        'address_line2': request.form.get('address_line2', '').strip(),
+        'email': request.form.get('email', '').strip(),
+        'phone': request.form.get('phone', '').strip(),
+        'invoice_terms': request.form.get('invoice_terms', '').strip(),
+        'invoice_start_number': request.form.get('invoice_start_number', '1001').strip(),
+        'services': request.form.get('services', '').strip(),
+    }
+    models.set_business_config_bulk(data)
+    models.log_change('business_profile', detail='Updated business profile')
+    flash('Business profile saved.', 'success')
+    return redirect(url_for('settings.business_profile'))
+
+
+# ── Tax Jurisdictions ──
+
+@settings_bp.route('/tax-setup')
+def tax_setup():
+    jurisdictions = models.get_tax_jurisdictions()
+    return render_template('settings/tax_setup.html', jurisdictions=jurisdictions)
+
+@settings_bp.route('/tax-setup/save', methods=['POST'])
+def save_tax_jurisdiction():
+    jid = request.form.get('id', '').strip()
+    name = request.form.get('name', '').strip()
+    tax_rate = request.form.get('tax_rate', 0, type=float) / 100.0  # Convert % to decimal
+    exemption = request.form.get('exemption_per_person', 0, type=float)
+    pay_url = request.form.get('pay_url', '').strip()
+    enabled = 1 if request.form.get('enabled') else 0
+
+    if jid == 'federal':
+        # Only save the payment URL for federal
+        j = models.get_tax_jurisdiction('federal')
+        models.save_tax_jurisdiction('federal', j['name'], j['tax_rate'], j['exemption_per_person'], pay_url, 1)
+    elif jid and name:
+        models.save_tax_jurisdiction(jid, name, tax_rate, exemption, pay_url, enabled)
+
+    models.log_change('tax_jurisdiction', detail=f'Updated jurisdiction: {name or jid}')
+    flash(f'Tax jurisdiction updated.', 'success')
+    return redirect(url_for('settings.tax_setup'))
 
 
 # ── Owners (QJV) ──

@@ -2,9 +2,27 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, flash, redirect, url_for, make_response
 from .. import models
-from ..config import SERVICES, BUSINESS_INFO
 
 invoice_bp = Blueprint('invoices', __name__, url_prefix='/invoices')
+
+
+def _get_services():
+    """Get services list from business config DB."""
+    bconfig = models.get_business_config()
+    raw = bconfig.get('services', 'Consulting,Services')
+    return [s.strip() for s in raw.split(',') if s.strip()]
+
+
+def _get_business_info():
+    """Get business info dict from DB config."""
+    bconfig = models.get_business_config()
+    return {
+        'name': bconfig.get('business_name', 'My Business LLC'),
+        'address_line1': bconfig.get('address_line1', ''),
+        'address_line2': bconfig.get('address_line2', ''),
+        'email': bconfig.get('email', ''),
+        'phone': bconfig.get('phone', ''),
+    }
 
 
 @invoice_bp.route('/')
@@ -56,7 +74,7 @@ def create():
 
     return render_template('invoice_form.html',
         clients=models.get_clients(),
-        services=SERVICES,
+        services=_get_services(),
         next_number=models.get_next_invoice_number(),
         today=datetime.now().strftime('%Y-%m-%d'),
         edit_mode=False,
@@ -79,7 +97,7 @@ def view(id):
         invoice=invoice,
         line_items=line_items,
         total=total,
-        business=BUSINESS_INFO,
+        business=_get_business_info(),
     )
 
 
@@ -88,7 +106,6 @@ def update_status(id):
     status = request.form.get('status')
     if status in ('draft', 'sent', 'paid'):
         models.update_invoice_status(id, status)
-        flash(f'Invoice status updated to {status}.', 'success')
     return redirect(url_for('invoices.view', id=id))
 
 
@@ -106,7 +123,7 @@ def pdf(id):
         invoice=invoice,
         line_items=line_items,
         total=total,
-        business=BUSINESS_INFO,
+        business=_get_business_info(),
     )
 
     try:
@@ -164,7 +181,7 @@ def edit(id):
         invoice=invoice,
         line_items=line_items,
         clients=models.get_clients(),
-        services=SERVICES,
+        services=_get_services(),
         next_number=invoice['invoice_number'],
         today=invoice['date'],
         edit_mode=True,

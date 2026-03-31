@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings — Big Tech Accounting{% endblock %}
+{% block title %}Settings — {{ business_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -7,6 +7,14 @@
 </div>
 
 <div class="settings-links">
+    <a href="{{ url_for('settings.business_profile') }}" class="card settings-card">
+        <h3>Business Profile</h3>
+        <p>Company name, address, invoice settings.</p>
+    </a>
+    <a href="{{ url_for('settings.tax_setup') }}" class="card settings-card">
+        <h3>Tax Jurisdictions</h3>
+        <p>State and city tax rates, exemptions.</p>
+    </a>
     <a href="{{ url_for('settings.categories') }}" class="card settings-card">
         <h3>Categories</h3>
         <p>Manage expense and income categories.</p>
@@ -27,10 +35,12 @@
         <h3>Clients</h3>
         <p>Manage client information for invoicing.</p>
     </a>
+    {% if business_type == 'qjv' %}
     <a href="{{ url_for('settings.owners') }}" class="card settings-card">
-        <h3>Owners (QJV)</h3>
+        <h3>Owners</h3>
         <p>Configure joint venture owner split.</p>
     </a>
+    {% endif %}
     <a href="{{ url_for('settings.year_lock') }}" class="card settings-card">
         <h3>Year Lock</h3>
         <p>Lock finalized tax years to prevent changes.</p>

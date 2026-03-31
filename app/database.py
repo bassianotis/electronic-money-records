@@ -214,7 +214,7 @@ CREATE TABLE IF NOT EXISTS tax_payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
     amount REAL NOT NULL,
-    jurisdiction TEXT NOT NULL CHECK(jurisdiction IN ('federal','michigan','grand_rapids')),
+    jurisdiction TEXT NOT NULL,
     quarter TEXT NOT NULL,
     year INTEGER NOT NULL,
     confirmation_number TEXT,
@@ -234,6 +234,20 @@ CREATE TABLE IF NOT EXISTS tax_config (
     quarterly_federal REAL NOT NULL DEFAULT 0,
     quarterly_state REAL NOT NULL DEFAULT 0,
     quarterly_city REAL NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS business_config (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS tax_jurisdictions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    tax_rate REAL NOT NULL DEFAULT 0,
+    exemption_per_person REAL NOT NULL DEFAULT 0,
+    pay_url TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1
 );
 """
 

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Business Profile — {{ business_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Business Profile</h2>
+</div>
+
+<div class="card">
+    <h3>Business Identity</h3>
+    <p>This information appears on invoices and reports.</p>
+    <form method="POST" action="{{ url_for('settings.save_business_profile') }}">
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label for="business_name">Business Name</label>
+                <input type="text" id="business_name" name="business_name" value="{{ config.business_name }}" required>
+            </div>
+            <div class="form-group">
+                <label for="business_type">Business Type</label>
+                <select id="business_type" name="business_type">
+                    <option value="sole_prop" {% if config.business_type == 'sole_prop' %}selected{% endif %}>Sole Proprietor / Single-Member LLC</option>
+                    <option value="qjv" {% if config.business_type == 'qjv' %}selected{% endif %}>Qualified Joint Venture (QJV)</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="address_line1">Address Line 1</label>
+                <input type="text" id="address_line1" name="address_line1" value="{{ config.address_line1 }}" placeholder="123 Main St">
+            </div>
+            <div class="form-group">
+                <label for="address_line2">City, State ZIP</label>
+                <input type="text" id="address_line2" name="address_line2" value="{{ config.address_line2 }}" placeholder="City, ST 12345">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="{{ config.email }}" placeholder="billing@example.com">
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="text" id="phone" name="phone" value="{{ config.phone }}" placeholder="+1 (555) 123-4567">
+            </div>
+        </div>
+
+        <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--border);">
+
+        <h3>Invoice Settings</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="invoice_terms">Default Payment Terms</label>
+                <input type="text" id="invoice_terms" name="invoice_terms" value="{{ config.invoice_terms }}" placeholder="Net 15">
+            </div>
+            <div class="form-group">
+                <label for="invoice_start_number">Invoice Start Number</label>
+                <input type="number" id="invoice_start_number" name="invoice_start_number" value="{{ config.invoice_start_number }}" min="1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="services">Services Offered <span style="color: var(--text-secondary); font-weight: 400;">(comma-separated)</span></label>
+            <input type="text" id="services" name="services" value="{{ config.services }}" placeholder="Consulting, Design, Development">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top: 8px;">Save Profile</button>
+    </form>
+</div>
+{% endblock %}
