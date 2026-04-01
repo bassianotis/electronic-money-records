@@ -194,14 +194,20 @@ def save_tax_jurisdiction():
     tax_rate = request.form.get('tax_rate', 0, type=float) / 100.0  # Convert % to decimal
     exemption = request.form.get('exemption_per_person', 0, type=float)
     pay_url = request.form.get('pay_url', '').strip()
-    enabled = 1 if request.form.get('enabled') else 0
+    enabled = 1 if request.form.get('enabled') == '1' else 0
 
     if jid == 'federal':
         # Only save the payment URL for federal
         j = models.get_tax_jurisdiction('federal')
         models.save_tax_jurisdiction('federal', j['name'], j['tax_rate'], j['exemption_per_person'], pay_url, 1)
-    elif jid and name:
-        models.save_tax_jurisdiction(jid, name, tax_rate, exemption, pay_url, enabled)
+    elif jid:
+        if enabled:
+            if name:
+                models.save_tax_jurisdiction(jid, name, tax_rate, exemption, pay_url, 1)
+        else:
+            # Disable and erase data to reset the jurisdiction
+            fallback_name = "State" if jid == "state" else "City"
+            models.save_tax_jurisdiction(jid, fallback_name, 0, 0, "", 0)
 
     models.log_change('tax_jurisdiction', detail=f'Updated jurisdiction: {name or jid}')
     flash(f'Tax jurisdiction updated.', 'success')

@@ -40,7 +40,7 @@
     <div class="bill-to">
         <div class="bill-to-label">Bill to</div>
         <div>{{ invoice.client_name }}</div>
-        {% if invoice.client_address %}<div>{{ invoice.client_address }}</div>{% endif %}
+        {% if invoice.client_address %}<div style="white-space: pre-wrap; margin-bottom: 6px;">{{ invoice.client_address }}</div>{% endif %}
     </div>
 
     <div class="invoice-details">

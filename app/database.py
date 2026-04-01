@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     notes TEXT,
     source TEXT NOT NULL DEFAULT 'manual',
     is_reconciled INTEGER NOT NULL DEFAULT 0,
+    receipt_file TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (account_id) REFERENCES accounts(id),
     FOREIGN KEY (category_id) REFERENCES categories(id)
@@ -143,6 +144,9 @@ CREATE TABLE IF NOT EXISTS invoices (
     terms TEXT NOT NULL DEFAULT 'Net 15',
     status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'sent', 'paid')),
     matched_transaction_id INTEGER REFERENCES transactions(id),
+    client_name_snapshot TEXT,
+    client_address_snapshot TEXT,
+    client_email_snapshot TEXT,
     notes TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (client_id) REFERENCES clients(id)
@@ -233,7 +237,8 @@ CREATE TABLE IF NOT EXISTS tax_config (
     include_expenses INTEGER NOT NULL DEFAULT 1,
     quarterly_federal REAL NOT NULL DEFAULT 0,
     quarterly_state REAL NOT NULL DEFAULT 0,
-    quarterly_city REAL NOT NULL DEFAULT 0
+    quarterly_city REAL NOT NULL DEFAULT 0,
+    dependents INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS business_config (
@@ -261,6 +266,16 @@ MIGRATIONS = [
     "ALTER TABLE transactions ADD COLUMN attendees TEXT",
     "ALTER TABLE transactions ADD COLUMN contractor_id INTEGER",
     "ALTER TABLE transactions ADD COLUMN is_reconciled INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE transactions ADD COLUMN receipt_file TEXT",
     "ALTER TABLE invoices ADD COLUMN matched_transaction_id INTEGER REFERENCES transactions(id)",
     "ALTER TABLE transactions ADD COLUMN linked_transfer_id INTEGER REFERENCES transactions(id)",
+    "ALTER TABLE tax_config ADD COLUMN dependents INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE invoices ADD COLUMN client_name_snapshot TEXT",
+    "ALTER TABLE invoices ADD COLUMN client_address_snapshot TEXT",
+    "ALTER TABLE invoices ADD COLUMN client_email_snapshot TEXT",
+    # Backfill missing snapshot data from existing clients
+    "UPDATE invoices SET client_name_snapshot = (SELECT name FROM clients WHERE clients.id = invoices.client_id), "
+    "client_address_snapshot = (SELECT address FROM clients WHERE clients.id = invoices.client_id), "
+    "client_email_snapshot = (SELECT email FROM clients WHERE clients.id = invoices.client_id) "
+    "WHERE client_name_snapshot IS NULL",
 ]

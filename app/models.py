@@ -329,8 +329,10 @@ def get_invoices(status=None):
 def get_invoice_by_id(id):
     db = get_db()
     invoice = db.execute(
-        """SELECT i.*, c.name as client_name, c.address as client_address,
-                  c.email as client_email
+        """SELECT i.*, 
+                  COALESCE(i.client_name_snapshot, c.name) as client_name,
+                  COALESCE(i.client_address_snapshot, c.address) as client_address,
+                  COALESCE(i.client_email_snapshot, c.email) as client_email
            FROM invoices i
            JOIN clients c ON i.client_id = c.id
            WHERE i.id = ?""",
@@ -349,10 +351,15 @@ def get_invoice_line_items(invoice_id):
 
 def create_invoice(invoice_number, client_id, date, due_date, terms, notes=''):
     db = get_db()
+    # Capture snapshot of the client at the time of creation
+    client = db.execute('SELECT name, address, email FROM clients WHERE id = ?', (client_id,)).fetchone()
+    
     cursor = db.execute(
-        """INSERT INTO invoices (invoice_number, client_id, date, due_date, terms, notes)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (invoice_number, client_id, date, due_date, terms, notes)
+        """INSERT INTO invoices (invoice_number, client_id, date, due_date, terms, notes,
+                                 client_name_snapshot, client_address_snapshot, client_email_snapshot)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (invoice_number, client_id, date, due_date, terms, notes,
+         client['name'], client['address'], client['email'])
     )
     db.commit()
     return cursor.lastrowid
@@ -378,10 +385,15 @@ def update_invoice_status(id, status):
 
 def update_invoice(id, client_id, date, due_date, terms, notes=''):
     db = get_db()
+    # Capture snapshot of the client at the time of the update
+    client = db.execute('SELECT name, address, email FROM clients WHERE id = ?', (client_id,)).fetchone()
+    
     db.execute(
-        """UPDATE invoices SET client_id = ?, date = ?, due_date = ?, terms = ?, notes = ?
+        """UPDATE invoices SET client_id = ?, date = ?, due_date = ?, terms = ?, notes = ?,
+                               client_name_snapshot = ?, client_address_snapshot = ?, client_email_snapshot = ?
            WHERE id = ?""",
-        (client_id, date, due_date, terms, notes, id)
+        (client_id, date, due_date, terms, notes,
+         client['name'], client['address'], client['email'], id)
     )
     db.commit()
 
@@ -797,11 +809,12 @@ def set_business_config_bulk(data):
 def get_tax_jurisdictions():
     """Get all tax jurisdictions."""
     db = get_db()
-    rows = db.execute('SELECT * FROM tax_jurisdictions ORDER BY id').fetchall()
+    order_clause = "CASE id WHEN 'federal' THEN 1 WHEN 'state' THEN 2 WHEN 'city' THEN 3 ELSE 4 END"
+    rows = db.execute(f'SELECT * FROM tax_jurisdictions ORDER BY {order_clause}').fetchall()
     if not rows:
         # Seed defaults on first access
         _seed_default_jurisdictions(db)
-        rows = db.execute('SELECT * FROM tax_jurisdictions ORDER BY id').fetchall()
+        rows = db.execute(f'SELECT * FROM tax_jurisdictions ORDER BY {order_clause}').fetchall()
     return rows
 
 def get_tax_jurisdiction(jid):

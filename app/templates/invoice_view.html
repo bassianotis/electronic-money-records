@@ -21,7 +21,7 @@
         </div>
         <div>
             <strong>Bill to:</strong> {{ invoice.client_name }}<br>
-            {% if invoice.client_address %}{{ invoice.client_address }}<br>{% endif %}
+            {% if invoice.client_address %}<div style="white-space: pre-wrap; margin-bottom: 4px;">{{ invoice.client_address }}</div>{% endif %}
             <strong>Date:</strong> {{ invoice.date }}<br>
             <strong>Due:</strong> {{ invoice.due_date }}<br>
             <strong>Terms:</strong> {{ invoice.terms }}

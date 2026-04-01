@@ -14,19 +14,30 @@
 </div>
 
 {% for j in jurisdictions %}
-<div class="card" style="margin-bottom: 16px; {% if not j.enabled and j.id != 'federal' %}opacity: 0.5;{% endif %}">
-    <form method="POST" action="{{ url_for('settings.save_tax_jurisdiction') }}">
+<div class="card" style="margin-bottom: 16px;">
+    {% if not j.enabled and j.id != 'federal' %}
+    <form method="POST" action="{{ url_for('settings.save_tax_jurisdiction') }}" style="text-align: center; padding: 40px 0;">
         <input type="hidden" name="id" value="{{ j.id }}">
+        <input type="hidden" name="enabled" value="1">
+        <input type="hidden" name="name" value="{{ 'State' if j.id == 'state' else 'City' }} Tax">
+        <p style="color: var(--text-secondary); margin-bottom: 16px;">{{ 'State' if j.id == 'state' else 'City' }} taxes are currently disabled.</p>
+        <button type="submit" class="btn btn-primary" style="font-size: 1rem; padding: 10px 24px;">Enable {{ 'State' if j.id == 'state' else 'City' }} Taxes</button>
+    </form>
+
+    {% else %}
+    <form id="form_{{ j.id }}" method="POST" action="{{ url_for('settings.save_tax_jurisdiction') }}">
+        <input type="hidden" name="id" value="{{ j.id }}">
+        <input type="hidden" id="form_{{ j.id }}_enabled" name="enabled" value="1">
+
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h3 style="margin: 0;">
                 {% if j.id == 'federal' %}🏛️{% elif j.id == 'state' %}🗺️{% else %}🏙️{% endif %}
                 {{ j.name }}
             </h3>
             {% if j.id != 'federal' %}
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary);">
-                <input type="checkbox" name="enabled" value="1" {% if j.enabled %}checked{% endif %}>
-                Enabled
-            </label>
+            <button type="button" class="btn btn-ghost btn-sm" style="color: var(--danger); font-size: 0.75rem;" title="Disable and erase all data for this jurisdiction" onclick="if(confirm('Disable this jurisdiction? This will clear its configuration.')){ document.getElementById('form_{{ j.id }}_enabled').value='0'; document.getElementById('form_{{ j.id }}').submit(); }">
+                Disable
+            </button>
             {% endif %}
         </div>
 
@@ -60,8 +71,9 @@
         </div>
         {% endif %}
 
-        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Configuration</button>
     </form>
+    {% endif %}
 </div>
 {% endfor %}
 {% endblock %}
