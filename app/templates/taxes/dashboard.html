@@ -144,6 +144,8 @@
             </span>
             {% if q.is_next %}
             <span class="badge badge-sent" style="margin-left: 8px;">⏰ Next Due</span>
+            {% elif q.is_paid and not q.is_past %}
+            <span class="badge badge-paid" style="margin-left: 8px;">✅ Paid</span>
             {% elif q.is_past %}
             <span class="badge badge-paid">✓ Past</span>
             {% endif %}

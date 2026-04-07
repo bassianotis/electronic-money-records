@@ -42,24 +42,40 @@ def dashboard():
         q_key = f'Q{q_num}'
         due = due_dates[q_key]
         is_past = date.today() > due
-        is_next = not is_past and (not quarters or quarters[-1]['is_past'])
+
+        fed_target = config.get('quarterly_federal', 0)
+        fed_paid = paid_by_q.get(('federal', q_key), 0)
+        state_target = config.get('quarterly_state', 0)
+        state_paid = paid_by_q.get(('state', q_key), 0)
+        city_target = config.get('quarterly_city', 0)
+        city_paid = paid_by_q.get(('city', q_key), 0)
+
+        # Quarter is "done" if date is past OR all enabled jurisdictions are fully paid
+        fed_ok = fed_paid >= fed_target if fed_target > 0 else True
+        state_ok = (state_paid >= state_target if state_target > 0 else True) if state_enabled else True
+        city_ok = (city_paid >= city_target if city_target > 0 else True) if city_enabled else True
+        is_paid = fed_ok and state_ok and city_ok and (fed_target > 0 or state_target > 0 or city_target > 0)
+        is_done = is_past or is_paid
+        is_next = not is_done and (not quarters or quarters[-1].get('is_done', False))
 
         q_data = {
             'label': q_key,
             'due_date': due,
             'is_past': is_past,
+            'is_paid': is_paid,
+            'is_done': is_done,
             'is_next': is_next,
             'federal': {
-                'target': config.get('quarterly_federal', 0),
-                'paid': paid_by_q.get(('federal', q_key), 0),
+                'target': fed_target,
+                'paid': fed_paid,
             },
             'state': {
-                'target': config.get('quarterly_state', 0),
-                'paid': paid_by_q.get(('state', q_key), 0),
+                'target': state_target,
+                'paid': state_paid,
             },
             'city': {
-                'target': config.get('quarterly_city', 0),
-                'paid': paid_by_q.get(('city', q_key), 0),
+                'target': city_target,
+                'paid': city_paid,
             },
         }
         quarters.append(q_data)
