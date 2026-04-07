@@ -33,7 +33,38 @@ def init_db(app):
             try:
                 db.execute(migration)
             except Exception:
-                pass  # Column already exists
+                pass  # Column already exists or migration already applied
+
+        # Atomic migration: recreate tax_payments if it has a stale CHECK constraint
+        try:
+            # Probe for the constraint by attempting a dummy insert with 'state'
+            db.execute("INSERT INTO tax_payments (date, amount, jurisdiction, quarter, year) "
+                       "VALUES ('_probe', 0, 'state', 'Q1', 0)")
+            # If it worked, the constraint is gone — delete the probe row
+            db.execute("DELETE FROM tax_payments WHERE date = '_probe'")
+        except Exception:
+            # CHECK constraint fired — rebuild the table without it
+            try:
+                db.execute("ALTER TABLE tax_payments RENAME TO _tax_payments_rebuild")
+                db.execute(
+                    "CREATE TABLE tax_payments ("
+                    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "  date TEXT NOT NULL,"
+                    "  amount REAL NOT NULL,"
+                    "  jurisdiction TEXT NOT NULL,"
+                    "  quarter TEXT NOT NULL,"
+                    "  year INTEGER NOT NULL,"
+                    "  confirmation_number TEXT,"
+                    "  receipt_file TEXT,"
+                    "  notes TEXT,"
+                    "  created_at TEXT NOT NULL DEFAULT (datetime('now'))"
+                    ")")
+                db.execute("INSERT INTO tax_payments SELECT * FROM _tax_payments_rebuild")
+                db.execute("DROP TABLE _tax_payments_rebuild")
+                db.execute("CREATE INDEX IF NOT EXISTS idx_tax_payments_year ON tax_payments(year)")
+            except Exception:
+                pass
+
         _seed_defaults(db)
         db.commit()
         close_db()
